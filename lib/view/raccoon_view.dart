@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_state_manager/get_state_manager.dart';
-import 'package:raccoon/raccoon.dart';
 import 'package:raccoon/raccoon_service.dart';
 import 'package:raccoon/view/raccoon_detail_view.dart';
 
@@ -12,14 +10,26 @@ class RaccoonView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final raccoon = Raccoon();
     return Scaffold(
       appBar: AppBar(
         title: const Text('Raccoon View'),
+        actions: [
+          IconButton(
+            onPressed: () {
+              service.calls.clear();
+            },
+            icon: const Icon(Icons.delete),
+          ),
+        ],
       ),
       body: Obx(
         () {
-          final calls = raccoon.calls.reversed.toList();
+          final calls = service.calls.reversed.toList();
+          if (calls.isEmpty) {
+            return const Center(
+              child: Text("There is no logged data"),
+            );
+          }
           return ListView.separated(
             itemCount: calls.length,
             itemBuilder: (context, index) {
