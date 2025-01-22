@@ -10,7 +10,7 @@ import 'package:raccoon/view/raccoon_view.dart';
 class RaccoonService extends GetxService {
   RxList<RaccoonHttpCall> calls = <RaccoonHttpCall>[].obs;
 
-  bool _isInspectorOpened = false;
+  var isInspectorOpened = false.obs;
 
   void addCall(RaccoonHttpCall call) => calls.add(call);
 
@@ -43,10 +43,10 @@ class RaccoonService extends GetxService {
   }
 
   Future<void> navigateToCallListScreen() async {
-    if (!_isInspectorOpened) {
-      _isInspectorOpened = true;
+    if (!isInspectorOpened.value) {
+      isInspectorOpened.value = true;
       await Get.to(() => RaccoonView(service: this));
-      _isInspectorOpened = false;
+      isInspectorOpened.value = false;
     }
   }
 }

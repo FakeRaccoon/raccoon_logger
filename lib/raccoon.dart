@@ -13,4 +13,6 @@ class Raccoon {
   RxList<RaccoonHttpCall> get calls => _service.calls;
 
   void showInspector() => _service.navigateToCallListScreen();
+
+  RxBool get isInspectorOpened => _service.isInspectorOpened;
 }
