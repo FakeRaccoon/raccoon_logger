@@ -17,7 +17,9 @@ class RaccoonResponseWidget extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: SelectableText(
-        RaccoonParser.formatJson(call.response?.body),
+        (call.response?.body is String)
+            ? call.response?.body
+            : RaccoonParser.formatJson(call.response?.body),
       ),
     );
   }
