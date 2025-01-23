@@ -75,9 +75,11 @@ class RaccoonView extends StatelessWidget {
                           color: call.error != null ? Colors.red : Colors.green,
                         ),
                       ),
-                onTap: () => Get.to(
-                  () => RaccoonDetailView(call: call),
-                ),
+                onTap: call.response?.status == null
+                    ? null
+                    : () => Get.to(
+                          () => RaccoonDetailView(call: call),
+                        ),
               );
             },
             separatorBuilder: (BuildContext context, int index) {
