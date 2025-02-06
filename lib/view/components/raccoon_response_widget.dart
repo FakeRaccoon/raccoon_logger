@@ -9,7 +9,7 @@ class RaccoonResponseWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (call.response == null) {
+    if (call.response?.body == null) {
       return const Center(
         child: Text("There is no response"),
       );
