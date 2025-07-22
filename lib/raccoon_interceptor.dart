@@ -128,7 +128,7 @@ class RaccoonInterceptor extends InterceptorsWrapper with RaccoonAdapter {
   }
 
   @override
-  void onError(DioException err, ErrorInterceptorHandler handler) {
+  void onError(DioError err, ErrorInterceptorHandler handler) {
     var httpError = RaccoonHttpError(
       error: err.toString(),
     );
