@@ -3,11 +3,11 @@ description: "A new Flutter package project."
 version: 0.1.0
 # homepage:
 environment:
-  sdk: ^3.3.4
+  sdk: ^3.1.5
   flutter: ">=1.17.0"
 
 dependencies:
-  dio: ^4.0.6
+  dio: ^5.9.0
   equatable: ^2.0.7
   expandable: ^5.0.1
   get: ^4.6.6
