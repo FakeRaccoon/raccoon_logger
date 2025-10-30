@@ -71,7 +71,9 @@ class RaccoonOverlayWidgetState extends State<RaccoonOverlayWidget>
         child: Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: RaccoonService().navigateToCallListScreen,
+            onTap: () {
+              RaccoonService().navigateToCallListScreen(context: context);
+            },
             child: Container(
               width: 40,
               height: 40,

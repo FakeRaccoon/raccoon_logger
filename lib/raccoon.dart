@@ -1,18 +1,35 @@
-import 'package:get/get.dart';
+import 'dart:collection';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:raccoon/model/raccoon_http_call.dart';
 
 import 'raccoon_service.dart';
 
+/// Public facade around [RaccoonService] for quick access inside apps.
 class Raccoon {
-  late final RaccoonService _service;
+  Raccoon._internal();
 
-  Raccoon() {
-    _service = Get.put(RaccoonService());
-  }
+  static final Raccoon _instance = Raccoon._internal();
 
-  RxList<RaccoonHttpCall> get calls => _service.calls;
+  factory Raccoon() => _instance;
 
-  void showInspector() => _service.navigateToCallListScreen();
+  final RaccoonService _service = RaccoonService();
 
-  RxBool get isInspectorOpened => _service.isInspectorOpened;
+  /// Snapshot of recorded calls. Use [listenable] to be notified when it changes.
+  UnmodifiableListView<RaccoonHttpCall> get calls => _service.calls;
+
+  /// Listen for inspector visibility changes.
+  ValueListenable<bool> get isInspectorOpened =>
+      _service.isInspectorOpenedListenable;
+
+  /// Opens the inspector UI, optionally scoped to the provided [context].
+  Future<void> showInspector({BuildContext? context}) =>
+      _service.navigateToCallListScreen(context: context);
+
+  /// Listenable that mirrors updates from the underlying [RaccoonService].
+  Listenable get listenable => _service;
+
+  /// Global navigator key that should be wired into the host `MaterialApp`.
+  GlobalKey<NavigatorState> get navigatorKey => _service.navigatorKey;
 }
