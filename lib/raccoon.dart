@@ -23,13 +23,58 @@ class Raccoon {
   ValueListenable<bool> get isInspectorOpened =>
       _service.isInspectorOpenedListenable;
 
-  /// Opens the inspector UI, optionally scoped to the provided [context].
+  /// Opens the inspector UI.
+  ///
+  /// **For MaterialApp (traditional navigation):**
+  /// You can optionally provide a [context], or rely on the global navigator key
+  /// assigned to `MaterialApp.navigatorKey`.
+  ///
+  /// **For MaterialApp.router:**
+  /// You MUST provide a [context]. The inspector will work with any routing
+  /// solution (GoRouter, AutoRoute, Beamer, etc.).
+  ///
+  /// Example:
+  /// ```dart
+  /// // Works with both MaterialApp and MaterialApp.router
+  /// Raccoon().showInspector(context: context);
+  /// ```
   Future<void> showInspector({BuildContext? context}) =>
       _service.navigateToCallListScreen(context: context);
 
   /// Listenable that mirrors updates from the underlying [RaccoonService].
   Listenable get listenable => _service;
 
+  /// Set an external navigator key for MaterialApp.router integration.
+  ///
+  /// Use this when you have a GoRouter, AutoRoute, or other router solution
+  /// with its own navigator key. This allows the inspector to use your
+  /// router's navigator as a fallback when context is not available.
+  ///
+  /// Example with GoRouter:
+  /// ```dart
+  /// final rootNavigatorKey = GlobalKey<NavigatorState>();
+  /// final router = GoRouter(
+  ///   navigatorKey: rootNavigatorKey,
+  ///   // ... routes
+  /// );
+  ///
+  /// // In your app initialization:
+  /// Raccoon().setNavigatorKey(rootNavigatorKey);
+  /// ```
+  void setNavigatorKey(GlobalKey<NavigatorState> key) {
+    _service.setNavigatorKey(key);
+  }
+
   /// Global navigator key that should be wired into the host `MaterialApp`.
+  ///
+  /// **Note:** This is only required for [MaterialApp] with traditional navigation.
+  /// When using [MaterialApp.router], this key is not needed - just ensure you
+  /// always provide a [BuildContext] when calling [showInspector].
+  @Deprecated(
+    'This is only needed for MaterialApp with traditional navigation. '
+    'For MaterialApp.router, provide context when calling showInspector(). '
+    'This property will be removed in a future version.',
+  )
+  // ignore: deprecated_member_use
   GlobalKey<NavigatorState> get navigatorKey => _service.navigatorKey;
 }

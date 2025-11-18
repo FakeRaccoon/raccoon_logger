@@ -12,8 +12,15 @@ import 'package:raccoon/view/raccoon_view.dart';
 /// Singleton backing store for captured HTTP calls and inspector state.
 ///
 /// The service implements [ChangeNotifier] so widgets can listen for updates.
-/// Assign [navigatorKey] to your `MaterialApp` to let the inspector present
-/// itself even when no [BuildContext] is available.
+///
+/// **For MaterialApp (traditional navigation):**
+/// Assign [navigatorKey] to your `MaterialApp.navigatorKey` to let the inspector
+/// present itself even when no [BuildContext] is available.
+///
+/// **For MaterialApp.router:**
+/// No setup needed - just ensure you always provide a [BuildContext] when calling
+/// [navigateToCallListScreen]. The inspector will work with any routing solution
+/// (GoRouter, AutoRoute, etc.) as long as context is provided.
 class RaccoonService extends ChangeNotifier {
   RaccoonService._internal();
 
@@ -23,10 +30,31 @@ class RaccoonService extends ChangeNotifier {
 
   static RaccoonService get instance => _instance;
 
-  /// Global navigator key the host app should assign to `MaterialApp.navigatorKey`.
+  /// Global navigator key the host app can assign to `MaterialApp.navigatorKey`.
   /// Used as a fallback when [navigateToCallListScreen] is invoked without a
   /// [BuildContext].
+  ///
+  /// **Note:** This is only required for [MaterialApp] with traditional navigation.
+  /// When using [MaterialApp.router], this key is not needed - just ensure you
+  /// always provide a [BuildContext] when calling [navigateToCallListScreen].
+  @Deprecated(
+    'This is only needed for MaterialApp with traditional navigation. '
+    'For MaterialApp.router, provide context when calling showInspector(). '
+    'This property will be removed in a future version.',
+  )
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+  /// Optional external navigator key for MaterialApp.router integration.
+  /// Set this if you're using GoRouter or other router solutions and want
+  /// to use a custom navigator key.
+  GlobalKey<NavigatorState>? externalNavigatorKey;
+
+  /// Set an external navigator key (e.g., from GoRouter's navigatorKey).
+  /// This is useful when using MaterialApp.router and you want the inspector
+  /// to use your router's navigator key as a fallback.
+  void setNavigatorKey(GlobalKey<NavigatorState> key) {
+    externalNavigatorKey = key;
+  }
 
   final List<RaccoonHttpCall> _calls = <RaccoonHttpCall>[];
 
@@ -121,6 +149,12 @@ class RaccoonService extends ChangeNotifier {
         return navigator;
       }
     }
+    // Try external navigator key first (for MaterialApp.router)
+    if (externalNavigatorKey?.currentState != null) {
+      return externalNavigatorKey!.currentState;
+    }
+    // Fallback to deprecated navigatorKey (for MaterialApp)
+    // ignore: deprecated_member_use
     return navigatorKey.currentState;
   }
 

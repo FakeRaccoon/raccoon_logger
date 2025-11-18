@@ -184,7 +184,7 @@ class _RaccoonViewState extends State<RaccoonView> {
               );
             },
             separatorBuilder: (BuildContext context, int index) {
-              return const Divider();
+              return const Divider(color: Colors.grey);
             },
           );
         },
