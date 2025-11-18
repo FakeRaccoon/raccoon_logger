@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:raccoon/model/raccoon_http_call.dart';
+import 'package:raccoon/utils/raccoon_format_helpers.dart';
 import 'package:raccoon/utils/raccoon_formatter.dart';
 
 class RaccoonResponseWidget extends StatefulWidget {
@@ -13,6 +15,37 @@ class RaccoonResponseWidget extends StatefulWidget {
 
 class _RaccoonResponseWidgetState extends State<RaccoonResponseWidget> {
   bool _showFormatted = true;
+  bool _showSearch = false;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  int _currentMatchIndex = 0;
+  int _totalMatches = 0;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _toggleSearch() {
+    setState(() {
+      _showSearch = !_showSearch;
+      if (!_showSearch) {
+        _searchController.clear();
+        _searchQuery = '';
+        _totalMatches = 0;
+        _currentMatchIndex = 0;
+      }
+    });
+  }
+
+  void _onSearchChanged(String query) {
+    setState(() {
+      _searchQuery = query;
+      _currentMatchIndex = 0;
+      // Count matches would happen in the formatter
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +60,7 @@ class _RaccoonResponseWidgetState extends State<RaccoonResponseWidget> {
     final contentType = RaccoonFormatter.detectContentType(headers, body);
 
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Toolbar
         Container(
@@ -39,65 +73,53 @@ class _RaccoonResponseWidgetState extends State<RaccoonResponseWidget> {
           ),
           child: Row(
             children: [
-              // Content type indicator
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: _getContentTypeColor(contentType).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(
-                    color: _getContentTypeColor(contentType),
-                  ),
-                ),
-                child: Text(
-                  contentType.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: _getContentTypeColor(contentType),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Format toggle (only for JSON/XML)
               if (contentType == 'json' || contentType == 'xml') ...[
-                Text(
-                  'Format:',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[700],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                SegmentedButton<bool>(
-                  segments: const [
-                    ButtonSegment(
-                      value: true,
-                      label: Text('Formatted', style: TextStyle(fontSize: 12)),
-                      icon: Icon(Icons.code, size: 16),
+                Expanded(
+                  child: SegmentedButton<bool>(
+                    segments: const [
+                      ButtonSegment(
+                        value: true,
+                        label:
+                            Text('Formatted', style: TextStyle(fontSize: 12)),
+                        icon: Icon(Icons.code, size: 16),
+                      ),
+                      ButtonSegment(
+                        value: false,
+                        label: Text('Raw', style: TextStyle(fontSize: 12)),
+                        icon: Icon(Icons.text_fields, size: 16),
+                      ),
+                    ],
+                    selected: {_showFormatted},
+                    onSelectionChanged: (Set<bool> newSelection) {
+                      setState(() {
+                        _showFormatted = newSelection.first;
+                      });
+                    },
+                    style: const ButtonStyle(
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
                     ),
-                    ButtonSegment(
-                      value: false,
-                      label: Text('Raw', style: TextStyle(fontSize: 12)),
-                      icon: Icon(Icons.text_fields, size: 16),
-                    ),
-                  ],
-                  selected: {_showFormatted},
-                  onSelectionChanged: (Set<bool> newSelection) {
-                    setState(() {
-                      _showFormatted = newSelection.first;
-                    });
-                  },
-                  style: ButtonStyle(
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: VisualDensity.compact,
                   ),
                 ),
               ],
+              IconButton(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: body.toString()));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Response copied to clipboard'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.copy),
+                tooltip: 'Copy response',
+                iconSize: 20,
+                visualDensity: VisualDensity.compact,
+              ),
             ],
           ),
         ),
-        // Content
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -132,8 +154,9 @@ class _RaccoonResponseWidgetState extends State<RaccoonResponseWidget> {
       final formatted = RaccoonFormatter.formatJson(body);
       return RaccoonFormatter.buildJsonWidget(formatted);
     } else {
+      final raw = body.toString();
       return SelectableText(
-        body.toString(),
+        raw,
         style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
       );
     }
@@ -174,8 +197,9 @@ class _RaccoonResponseWidgetState extends State<RaccoonResponseWidget> {
   }
 
   Widget _buildTextContent(dynamic body) {
+    final text = body.toString();
     return SelectableText(
-      body.toString(),
+      text,
       style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
     );
   }

@@ -164,25 +164,9 @@ class _RaccoonDetailViewState extends State<RaccoonDetailView> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text("HTTP Call Detail"),
-          actions: [
-            if (RaccoonService().dioInstance != null)
-              IconButton(
-                onPressed: _isReplaying ? null : _handleReplay,
-                icon: _isReplaying
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    : const Icon(Icons.replay),
-                tooltip: 'Replay Request',
-              ),
-          ],
           bottom: const TabBar(
+            dividerHeight: 0,
+            labelStyle: TextStyle(fontWeight: FontWeight.bold),
             tabs: [
               Tab(
                 text: "Headers",
@@ -206,7 +190,12 @@ class _RaccoonDetailViewState extends State<RaccoonDetailView> {
         ),
         body: TabBarView(
           children: [
-            RaccoonHeadersWidget(call: widget.call),
+            RaccoonHeadersWidget(
+              call: widget.call,
+              onReplay:
+                  RaccoonService().dioInstance != null ? _handleReplay : null,
+              isReplaying: _isReplaying,
+            ),
             RaccoonResponseWidget(call: widget.call),
             RaccoonErrorWidget(call: widget.call),
           ],
