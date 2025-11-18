@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:raccoon/model/raccoon_http_call.dart';
 import 'package:raccoon/raccoon_service.dart';
 import 'package:raccoon/view/raccoon_detail_view.dart';
+import 'package:raccoon/view/raccoon_stats_view.dart';
 
 class RaccoonView extends StatefulWidget {
   const RaccoonView({super.key, required this.service});
@@ -105,9 +106,40 @@ class _RaccoonViewState extends State<RaccoonView> {
             icon: Icon(_isSearching ? Icons.close : Icons.search),
             tooltip: _isSearching ? 'Close search' : 'Search',
           ),
-          IconButton(
-            onPressed: widget.service.clearCalls,
-            icon: const Icon(Icons.delete),
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'statistics') {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => RaccoonStatsView(service: widget.service),
+                  ),
+                );
+              } else if (value == 'clear') {
+                widget.service.clearCalls();
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'statistics',
+                child: Row(
+                  children: [
+                    Icon(Icons.bar_chart),
+                    SizedBox(width: 8),
+                    Text('Statistics'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'clear',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete),
+                    SizedBox(width: 8),
+                    Text('Clear All'),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),

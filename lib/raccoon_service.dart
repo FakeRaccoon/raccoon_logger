@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:developer';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:raccoon/model/raccoon_http_call.dart';
@@ -49,12 +50,31 @@ class RaccoonService extends ChangeNotifier {
   /// to use a custom navigator key.
   GlobalKey<NavigatorState>? externalNavigatorKey;
 
+  /// Optional Dio instance for replaying requests.
+  /// Set this if you want to enable request replay functionality.
+  Dio? _dioInstance;
+
   /// Set an external navigator key (e.g., from GoRouter's navigatorKey).
   /// This is useful when using MaterialApp.router and you want the inspector
   /// to use your router's navigator key as a fallback.
   void setNavigatorKey(GlobalKey<NavigatorState> key) {
     externalNavigatorKey = key;
   }
+
+  /// Set a Dio instance for replaying requests.
+  /// This allows the inspector to resend captured requests.
+  ///
+  /// Example:
+  /// ```dart
+  /// final dio = Dio();
+  /// RaccoonService().setDioInstance(dio);
+  /// ```
+  void setDioInstance(Dio dio) {
+    _dioInstance = dio;
+  }
+
+  /// Get the configured Dio instance for replaying requests.
+  Dio? get dioInstance => _dioInstance;
 
   final List<RaccoonHttpCall> _calls = <RaccoonHttpCall>[];
 
@@ -164,5 +184,52 @@ class RaccoonService extends ChangeNotifier {
     }
     _isInspectorOpenedNotifier.value = value;
     notifyListeners();
+  }
+
+  /// Replays a captured HTTP call using the configured Dio instance.
+  ///
+  /// Returns a [Response] if successful, or throws a [DioException] on error.
+  /// Throws [StateError] if no Dio instance has been configured.
+  Future<Response> replayRequest(RaccoonHttpCall call) async {
+    if (_dioInstance == null) {
+      throw StateError(
+        'No Dio instance configured. Call setDioInstance() first.',
+      );
+    }
+
+    if (call.request == null) {
+      throw StateError('Cannot replay request: request data is null');
+    }
+
+    final request = call.request!;
+
+    // Prepare request options
+    final options = Options(
+      method: call.method,
+      headers: request.headers,
+      contentType: request.contentType,
+    );
+
+    // Parse query parameters from URI
+    final uri = Uri.parse(call.uri);
+    final queryParameters = uri.queryParameters;
+
+    // Prepare request data
+    dynamic data = request.body;
+    if (request.body == "Form Data" && request.formDataFields != null) {
+      final formData = FormData();
+      for (final field in request.formDataFields!) {
+        formData.fields.add(MapEntry(field.name, field.value));
+      }
+      data = formData;
+    }
+
+    // Execute the request
+    return _dioInstance!.request(
+      call.uri,
+      data: data,
+      queryParameters: queryParameters.isNotEmpty ? queryParameters : null,
+      options: options,
+    );
   }
 }

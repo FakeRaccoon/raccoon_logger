@@ -1,5 +1,6 @@
 import 'dart:collection';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:raccoon/model/raccoon_http_call.dart';
@@ -63,6 +64,23 @@ class Raccoon {
   /// ```
   void setNavigatorKey(GlobalKey<NavigatorState> key) {
     _service.setNavigatorKey(key);
+  }
+
+  /// Set a Dio instance for replaying requests.
+  ///
+  /// This enables the request replay functionality in the detail view,
+  /// allowing you to resend captured requests.
+  ///
+  /// Example:
+  /// ```dart
+  /// final dio = Dio()
+  ///   ..interceptors.add(RaccoonInterceptor());
+  ///
+  /// // Enable request replay
+  /// Raccoon().setDioInstance(dio);
+  /// ```
+  void setDioInstance(Dio dio) {
+    _service.setDioInstance(dio);
   }
 
   /// Global navigator key that should be wired into the host `MaterialApp`.
