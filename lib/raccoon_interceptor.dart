@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:raccoon/model/raccoon_form_data_field.dart';
 import 'package:raccoon/model/raccoon_http_call.dart';
 import 'package:raccoon/model/raccoon_http_error.dart';
@@ -84,7 +85,7 @@ class RaccoonInterceptor extends InterceptorsWrapper with RaccoonAdapter {
 
       service.addCall(seed);
     } catch (e) {
-      print("ERROR ON REQUEST $e");
+      debugPrint("ERROR ON REQUEST $e");
     }
 
     return handler.next(options);
@@ -121,7 +122,7 @@ class RaccoonInterceptor extends InterceptorsWrapper with RaccoonAdapter {
 
       service.addResponse(httpResponse, response.requestOptions.hashCode);
     } catch (e) {
-      print("ERROR ON RESPONSE $e");
+      debugPrint("ERROR ON RESPONSE $e");
     }
 
     return handler.next(response);

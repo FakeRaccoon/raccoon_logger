@@ -14,14 +14,13 @@ import 'package:raccoon/view/raccoon_view.dart';
 ///
 /// The service implements [ChangeNotifier] so widgets can listen for updates.
 ///
-/// **For MaterialApp (traditional navigation):**
-/// Assign [navigatorKey] to your `MaterialApp.navigatorKey` to let the inspector
-/// present itself even when no [BuildContext] is available.
+/// **Navigation:**
+/// Always provide a [BuildContext] when calling [navigateToCallListScreen] for
+/// best compatibility with all navigation solutions (MaterialApp, GoRouter, GetX,
+/// Auto_route, Beamer, etc.).
 ///
-/// **For MaterialApp.router:**
-/// No setup needed - just ensure you always provide a [BuildContext] when calling
-/// [navigateToCallListScreen]. The inspector will work with any routing solution
-/// (GoRouter, AutoRoute, etc.) as long as context is provided.
+/// Optionally, set a [NavigatorState] provider via [setNavigatorProvider] for
+/// cases where context is not available.
 class RaccoonService extends ChangeNotifier {
   RaccoonService._internal();
 
@@ -31,34 +30,34 @@ class RaccoonService extends ChangeNotifier {
 
   static RaccoonService get instance => _instance;
 
-  /// Global navigator key the host app can assign to `MaterialApp.navigatorKey`.
-  /// Used as a fallback when [navigateToCallListScreen] is invoked without a
-  /// [BuildContext].
-  ///
-  /// **Note:** This is only required for [MaterialApp] with traditional navigation.
-  /// When using [MaterialApp.router], this key is not needed - just ensure you
-  /// always provide a [BuildContext] when calling [navigateToCallListScreen].
-  @Deprecated(
-    'This is only needed for MaterialApp with traditional navigation. '
-    'For MaterialApp.router, provide context when calling showInspector(). '
-    'This property will be removed in a future version.',
-  )
-  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
-
-  /// Optional external navigator key for MaterialApp.router integration.
-  /// Set this if you're using GoRouter or other router solutions and want
-  /// to use a custom navigator key.
-  GlobalKey<NavigatorState>? externalNavigatorKey;
+  /// Optional navigator provider for opening inspector without context.
+  /// Set via [setNavigatorProvider] to provide a [NavigatorState] when needed.
+  NavigatorState Function()? _navigatorProvider;
 
   /// Optional Dio instance for replaying requests.
   /// Set this if you want to enable request replay functionality.
   Dio? _dioInstance;
 
-  /// Set an external navigator key (e.g., from GoRouter's navigatorKey).
-  /// This is useful when using MaterialApp.router and you want the inspector
-  /// to use your router's navigator key as a fallback.
-  void setNavigatorKey(GlobalKey<NavigatorState> key) {
-    externalNavigatorKey = key;
+  /// Set a navigator provider for opening the inspector without context.
+  ///
+  /// This is OPTIONAL - most apps should just pass context to
+  /// [navigateToCallListScreen].
+  ///
+  /// The provider function should return a [NavigatorState] when called.
+  ///
+  /// Example with MaterialApp:
+  /// ```dart
+  /// final navigatorKey = GlobalKey<NavigatorState>();
+  /// RaccoonService().setNavigatorProvider(() => navigatorKey.currentState!);
+  /// ```
+  ///
+  /// Example with GoRouter:
+  /// ```dart
+  /// final rootNavigatorKey = GlobalKey<NavigatorState>();
+  /// RaccoonService().setNavigatorProvider(() => rootNavigatorKey.currentState!);
+  /// ```
+  void setNavigatorProvider(NavigatorState Function() provider) {
+    _navigatorProvider = provider;
   }
 
   /// Set a Dio instance for replaying requests.
@@ -135,8 +134,13 @@ class RaccoonService extends ChangeNotifier {
   }
 
   /// Opens the inspector UI. Subsequent calls while the inspector is visible
-  /// are ignored. When [context] is omitted, the service falls back to
-  /// [navigatorKey].
+  /// are ignored.
+  ///
+  /// **Recommended:** Always provide [context] for maximum compatibility with
+  /// all navigation solutions (MaterialApp, GoRouter, GetX, Auto_route, etc.).
+  ///
+  /// **Optional:** If context is not available, set a navigator provider via
+  /// [setNavigatorProvider] first.
   Future<void> navigateToCallListScreen({BuildContext? context}) async {
     if (isInspectorOpened) {
       return;
@@ -144,7 +148,8 @@ class RaccoonService extends ChangeNotifier {
 
     final navigator = _resolveNavigator(context);
     if (navigator == null) {
-      log('RaccoonService: Unable to find a Navigator to display the inspector.');
+      log('RaccoonService: Unable to find a Navigator. '
+          'Provide context or set up a navigator provider via setNavigatorProvider().');
       return;
     }
 
@@ -162,20 +167,29 @@ class RaccoonService extends ChangeNotifier {
   }
 
   /// Chooses the most appropriate navigator available for displaying screens.
+  ///
+  /// Priority order:
+  /// 1. Context-based navigator (works with all navigation solutions)
+  /// 2. Navigator provider (optional, set via [setNavigatorProvider])
   NavigatorState? _resolveNavigator(BuildContext? context) {
+    // Priority 1: Context-based (works with everything)
     if (context != null) {
       final navigator = Navigator.maybeOf(context, rootNavigator: true);
       if (navigator != null) {
         return navigator;
       }
     }
-    // Try external navigator key first (for MaterialApp.router)
-    if (externalNavigatorKey?.currentState != null) {
-      return externalNavigatorKey!.currentState;
+
+    // Priority 2: Navigator provider (optional convenience)
+    if (_navigatorProvider != null) {
+      try {
+        return _navigatorProvider!();
+      } catch (e) {
+        log('Navigator provider failed: $e');
+      }
     }
-    // Fallback to deprecated navigatorKey (for MaterialApp)
-    // ignore: deprecated_member_use
-    return navigatorKey.currentState;
+
+    return null;
   }
 
   void _setInspectorOpened(bool value) {

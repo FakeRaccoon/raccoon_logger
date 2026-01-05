@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:raccoon/model/raccoon_http_call.dart';
-import 'package:raccoon/utils/raccoon_format_helpers.dart';
 import 'package:raccoon/utils/raccoon_formatter.dart';
 
 class RaccoonResponseWidget extends StatefulWidget {
@@ -15,37 +14,6 @@ class RaccoonResponseWidget extends StatefulWidget {
 
 class _RaccoonResponseWidgetState extends State<RaccoonResponseWidget> {
   bool _showFormatted = true;
-  bool _showSearch = false;
-  final TextEditingController _searchController = TextEditingController();
-  String _searchQuery = '';
-  int _currentMatchIndex = 0;
-  int _totalMatches = 0;
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
-  void _toggleSearch() {
-    setState(() {
-      _showSearch = !_showSearch;
-      if (!_showSearch) {
-        _searchController.clear();
-        _searchQuery = '';
-        _totalMatches = 0;
-        _currentMatchIndex = 0;
-      }
-    });
-  }
-
-  void _onSearchChanged(String query) {
-    setState(() {
-      _searchQuery = query;
-      _currentMatchIndex = 0;
-      // Count matches would happen in the formatter
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -202,20 +170,5 @@ class _RaccoonResponseWidgetState extends State<RaccoonResponseWidget> {
       text,
       style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
     );
-  }
-
-  Color _getContentTypeColor(String contentType) {
-    switch (contentType) {
-      case 'json':
-        return Colors.blue;
-      case 'xml':
-      case 'html':
-        return Colors.orange;
-      case 'image':
-        return Colors.purple;
-      case 'text':
-      default:
-        return Colors.grey;
-    }
   }
 }

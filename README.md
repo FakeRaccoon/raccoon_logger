@@ -24,7 +24,7 @@ Then run `flutter pub get`.
 
 ## Quick Start
 
-### Option A: MaterialApp (Traditional Navigation)
+### Setup (Works with all navigation solutions)
 
 1. **Create your `Dio` client with the interceptor**
 
@@ -33,100 +33,9 @@ Then run `flutter pub get`.
      ..interceptors.add(RaccoonInterceptor());
    ```
 
-2. **Wire the global navigator key** so Raccoon can open the inspector outside of widget trees.
+2. **Add the draggable inspector button**
 
-   ```dart
-   class App extends StatelessWidget {
-     App({super.key});
-
-     final _raccoon = Raccoon();
-
-     @override
-     Widget build(BuildContext context) {
-       return MaterialApp(
-         navigatorKey: _raccoon.navigatorKey,
-         home: const HomePage(),
-       );
-     }
-   }
-   ```
-
-3. **Drop the draggable inspector button** somewhere near the top of your `MaterialApp` to access the UI with a tap.
-
-   ```dart
-   class HomePage extends StatelessWidget {
-     const HomePage({super.key});
-
-     @override
-     Widget build(BuildContext context) {
-       return Scaffold(
-         body: Stack(
-           children: const [
-             // ... your content ...
-             RaccoonOverlayWidget(),
-           ],
-         ),
-       );
-     }
-   }
-   ```
-
-4. **Open the inspector on demand** (optional), for example from a debug gesture or menu item.
-
-   ```dart
-   ElevatedButton(
-     onPressed: () => Raccoon().showInspector(context: context),
-     child: const Text('Open inspector'),
-   )
-   ```
-
-### Option B: MaterialApp.router (Navigator 2.0)
-
-1. **Create your `Dio` client with the interceptor** (same as above)
-
-   ```dart
-   final dio = Dio()
-     ..interceptors.add(RaccoonInterceptor());
-   ```
-
-2. **Set up your router and assign the navigator key to Raccoon**
-
-   ```dart
-   final rootNavigatorKey = GlobalKey<NavigatorState>();
-
-   final router = GoRouter(
-     navigatorKey: rootNavigatorKey,
-     routes: [
-       // your routes
-     ],
-   );
-
-   class App extends StatefulWidget {
-     const App({super.key});
-
-     @override
-     State<App> createState() => _AppState();
-   }
-
-   class _AppState extends State<App> {
-     @override
-     void initState() {
-       super.initState();
-       // IMPORTANT: Set the router's navigator key to Raccoon
-       Raccoon().setNavigatorKey(rootNavigatorKey);
-     }
-
-     @override
-     Widget build(BuildContext context) {
-       return MaterialApp.router(
-         routerConfig: router,
-       );
-     }
-   }
-   ```
-
-3. **Drop the draggable inspector button** using the builder (recommended for global overlay)
-
+   **For MaterialApp.router (GoRouter, Auto_route, etc.):**
    ```dart
    MaterialApp.router(
      routerConfig: router,
@@ -141,8 +50,7 @@ Then run `flutter pub get`.
    )
    ```
 
-   Or place it in individual pages:
-
+   **For MaterialApp (traditional):**
    ```dart
    class HomePage extends StatelessWidget {
      const HomePage({super.key});
@@ -161,40 +69,70 @@ Then run `flutter pub get`.
    }
    ```
 
-4. **Open the inspector on demand** - context is optional if you set the navigator key
+3. **Open the inspector programmatically** (optional)
 
    ```dart
    ElevatedButton(
-     onPressed: () => Raccoon().showInspector(), // context optional!
-     child: const Text('Open inspector'),
+     onPressed: () => Raccoon().showInspector(context: context),
+     child: const Text('Open Inspector'),
    )
    ```
 
-### General Usage
+That's it! The overlay button and context-based navigation work with **all Flutter navigation solutions** (MaterialApp, GoRouter, GetX, Auto_route, Beamer, etc.) with zero configuration.
+
+### Advanced: Navigator Provider (Optional)
+
+If you need to open the inspector without context (rare cases), you can set up a navigator provider:
+
+```dart
+// MaterialApp
+final navigatorKey = GlobalKey<NavigatorState>();
+MaterialApp(navigatorKey: navigatorKey, ...);
+Raccoon().setNavigatorProvider(() => navigatorKey.currentState!);
+
+// GoRouter
+final rootNavigatorKey = GlobalKey<NavigatorState>();
+final router = GoRouter(navigatorKey: rootNavigatorKey, ...);
+Raccoon().setNavigatorProvider(() => rootNavigatorKey.currentState!);
+
+// GetX - just use context (recommended)
+Raccoon().showInspector(context: context);
+```
+
+### Usage
 
 - **Filter captured calls** by tapping the search icon in the inspector's app bar. The inline search field matches method, endpoint, host, and status code so you can narrow noisy sessions quickly.
 
 ## Service API Cheatsheet
 
-- `Raccoon()` – singleton facade exposing `calls`, `isInspectorOpened`, and `showInspector()`.
-- `Raccoon().navigatorKey` – _(deprecated)_ only needed for `MaterialApp` with traditional navigation. Not required for `MaterialApp.router`.
-- `RaccoonService()` – underlying `ChangeNotifier` with `addCall`, `addResponse`, `addError`, `clearCalls`, and `navigateToCallListScreen` if you need direct access.
-- `Raccoon().listenable` – attach to a `ListenableBuilder`/`AnimatedBuilder` for custom dashboards.
+- `Raccoon().showInspector(context: context)` – opens the inspector UI (recommended: always provide context)
+- `Raccoon().setNavigatorProvider(() => navigatorKey.currentState!)` – optional navigator provider for opening inspector without context
+- `Raccoon().setDioInstance(dio)` – enables request replay functionality
+- `Raccoon().calls` – read-only list of captured HTTP calls
+- `Raccoon().isInspectorOpened` – listen for inspector visibility changes
+- `Raccoon().listenable` – attach to a `ListenableBuilder`/`AnimatedBuilder` for custom dashboards
+- `RaccoonService()` – underlying `ChangeNotifier` with `addCall`, `addResponse`, `addError`, `clearCalls` for direct access
 
 ## Compatibility
 
-Raccoon Logger supports both traditional navigation and Navigator 2.0:
+Raccoon Logger works universally with all Flutter navigation solutions:
 
-- **MaterialApp (traditional)**: Works with optional `navigatorKey` or always providing `context`
-- **MaterialApp.router**: Works seamlessly with GoRouter, AutoRoute, Beamer, and other routing solutions - just always provide `context` when calling `showInspector()`
-- The package automatically detects and uses the appropriate navigator from the widget tree
+- ✅ **MaterialApp** (traditional Navigator)
+- ✅ **MaterialApp.router** (Navigator 2.0)
+- ✅ **GoRouter**
+- ✅ **Auto_route**
+- ✅ **Beamer**
+- ✅ **GetX**
+- ✅ Any custom navigation solution
+
+The context-based navigation approach works seamlessly with all frameworks. No special configuration required!
 
 ## Tips
 
 - Avoid leaking captured traffic by calling `Raccoon().showInspector()` only from debug builds, or behind a feature flag.
 - Use `RaccoonService().clearCalls()` (exposed via the trash icon in the inspector) to keep memory in check during long sessions.
 - If you need advanced retention rules, extend `RaccoonService` and prune `_calls` as necessary before shipping to production.
-- **For MaterialApp.router users**: Always pass `context` to `showInspector()` to ensure proper navigation.
+- **Recommended**: Always provide `context` to `showInspector()` for maximum compatibility and simplicity.
 
 ## Contributing
 

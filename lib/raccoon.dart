@@ -26,18 +26,20 @@ class Raccoon {
 
   /// Opens the inspector UI.
   ///
-  /// **For MaterialApp (traditional navigation):**
-  /// You can optionally provide a [context], or rely on the global navigator key
-  /// assigned to `MaterialApp.navigatorKey`.
-  ///
-  /// **For MaterialApp.router:**
-  /// You MUST provide a [context]. The inspector will work with any routing
-  /// solution (GoRouter, AutoRoute, Beamer, etc.).
+  /// **Recommended:** Always provide [context] for maximum compatibility.
+  /// This works with all navigation solutions (MaterialApp, GoRouter, GetX,
+  /// Auto_route, Beamer, etc.) with zero configuration.
   ///
   /// Example:
   /// ```dart
-  /// // Works with both MaterialApp and MaterialApp.router
   /// Raccoon().showInspector(context: context);
+  /// ```
+  ///
+  /// **Optional:** If you need to open the inspector without context,
+  /// set up a navigator provider first:
+  /// ```dart
+  /// Raccoon().setNavigatorProvider(() => myNavigatorKey.currentState!);
+  /// Raccoon().showInspector(); // No context needed
   /// ```
   Future<void> showInspector({BuildContext? context}) =>
       _service.navigateToCallListScreen(context: context);
@@ -45,25 +47,36 @@ class Raccoon {
   /// Listenable that mirrors updates from the underlying [RaccoonService].
   Listenable get listenable => _service;
 
-  /// Set an external navigator key for MaterialApp.router integration.
+  /// Set a navigator provider for opening the inspector without context.
   ///
-  /// Use this when you have a GoRouter, AutoRoute, or other router solution
-  /// with its own navigator key. This allows the inspector to use your
-  /// router's navigator as a fallback when context is not available.
+  /// This is OPTIONAL - most apps should just pass context to [showInspector].
+  ///
+  /// The provider function should return a [NavigatorState] when called.
+  ///
+  /// Example with MaterialApp:
+  /// ```dart
+  /// final navigatorKey = GlobalKey<NavigatorState>();
+  /// MaterialApp(navigatorKey: navigatorKey, ...);
+  /// Raccoon().setNavigatorProvider(() => navigatorKey.currentState!);
+  /// ```
   ///
   /// Example with GoRouter:
   /// ```dart
   /// final rootNavigatorKey = GlobalKey<NavigatorState>();
-  /// final router = GoRouter(
-  ///   navigatorKey: rootNavigatorKey,
-  ///   // ... routes
-  /// );
-  ///
-  /// // In your app initialization:
-  /// Raccoon().setNavigatorKey(rootNavigatorKey);
+  /// final router = GoRouter(navigatorKey: rootNavigatorKey, ...);
+  /// Raccoon().setNavigatorProvider(() => rootNavigatorKey.currentState!);
   /// ```
-  void setNavigatorKey(GlobalKey<NavigatorState> key) {
-    _service.setNavigatorKey(key);
+  ///
+  /// Example with GetX:
+  /// ```dart
+  /// // Option 1: Use GetX navigator key (if configured)
+  /// Raccoon().setNavigatorProvider(() => Get.key.currentState!);
+  ///
+  /// // Option 2: Just use context (recommended)
+  /// Raccoon().showInspector(context: context);
+  /// ```
+  void setNavigatorProvider(NavigatorState Function() provider) {
+    _service.setNavigatorProvider(provider);
   }
 
   /// Set a Dio instance for replaying requests.
@@ -82,17 +95,4 @@ class Raccoon {
   void setDioInstance(Dio dio) {
     _service.setDioInstance(dio);
   }
-
-  /// Global navigator key that should be wired into the host `MaterialApp`.
-  ///
-  /// **Note:** This is only required for [MaterialApp] with traditional navigation.
-  /// When using [MaterialApp.router], this key is not needed - just ensure you
-  /// always provide a [BuildContext] when calling [showInspector].
-  @Deprecated(
-    'This is only needed for MaterialApp with traditional navigation. '
-    'For MaterialApp.router, provide context when calling showInspector(). '
-    'This property will be removed in a future version.',
-  )
-  // ignore: deprecated_member_use
-  GlobalKey<NavigatorState> get navigatorKey => _service.navigatorKey;
 }
