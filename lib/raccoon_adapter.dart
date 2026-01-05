@@ -1,6 +1,6 @@
-import 'package:get/get.dart';
 import 'package:raccoon/raccoon_service.dart';
 
+/// Convenience mixin that exposes the shared [RaccoonService] instance.
 mixin RaccoonAdapter {
-  RaccoonService get service => Get.find<RaccoonService>();
+  RaccoonService get service => RaccoonService();
 }

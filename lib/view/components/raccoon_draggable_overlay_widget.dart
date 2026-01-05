@@ -51,44 +51,57 @@ class RaccoonOverlayWidgetState extends State<RaccoonOverlayWidget>
     screenSize = MediaQuery.of(context).size;
     bottomSafeArea = MediaQuery.of(context).padding.bottom + 56;
 
-    return AnimatedPositioned(
-      duration: const Duration(milliseconds: 100),
-      left: position.dx,
-      top: position.dy,
-      child: GestureDetector(
-        onPanUpdate: (details) {
-          setState(() {
-            position += details.delta;
-            position = Offset(
-              position.dx.clamp(0, screenSize.width - 40),
-              position.dy.clamp(0, screenSize.height - 40 - bottomSafeArea),
-            );
-          });
-        },
-        onPanEnd: (_) {
-          _snapToSide();
-        },
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: RaccoonService().navigateToCallListScreen,
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: const BoxDecoration(
-                color: Colors.amber,
-                shape: BoxShape.circle,
-              ),
-              child: const Center(
-                child: Icon(
-                  Icons.bug_report,
-                  color: Colors.black,
+    // Hide the button when inspector is opened
+    return ValueListenableBuilder<bool>(
+      valueListenable: RaccoonService().isInspectorOpenedListenable,
+      builder: (context, isInspectorOpened, child) {
+        // Don't show the overlay button when inspector is open
+        if (isInspectorOpened) {
+          return const SizedBox.shrink();
+        }
+
+        return AnimatedPositioned(
+          duration: const Duration(milliseconds: 100),
+          left: position.dx,
+          top: position.dy,
+          child: GestureDetector(
+            onPanUpdate: (details) {
+              setState(() {
+                position += details.delta;
+                position = Offset(
+                  position.dx.clamp(0, screenSize.width - 40),
+                  position.dy.clamp(0, screenSize.height - 40 - bottomSafeArea),
+                );
+              });
+            },
+            onPanEnd: (_) {
+              _snapToSide();
+            },
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () {
+                  RaccoonService().navigateToCallListScreen(context: context);
+                },
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(
+                    color: Colors.amber,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.bug_report,
+                      color: Colors.black,
+                    ),
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
