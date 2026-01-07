@@ -13,6 +13,12 @@
   * Zero configuration needed for most apps - just use context
   * Works universally with MaterialApp, GoRouter, GetX, Auto_route, Beamer, and any custom navigation
 
+* **Feature**: Request body now displayed in Headers tab
+  * Added "Request Body" section to display JSON and text payloads
+  * Automatically detects and formats request body content (String, Map, List, etc.)
+  * Intelligently hides for empty requests and form data (shown separately)
+  * Makes debugging POST/PUT/PATCH requests easier
+
 * **Migration Guide** from 0.1.0:
   ```dart
   // OLD (0.1.0)
