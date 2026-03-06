@@ -171,6 +171,7 @@ class RaccoonService extends ChangeNotifier {
   /// Priority order:
   /// 1. Context-based navigator (works with all navigation solutions)
   /// 2. Navigator provider (optional, set via [setNavigatorProvider])
+  /// 3. Auto-discovery from the widget tree (zero-config fallback)
   NavigatorState? _resolveNavigator(BuildContext? context) {
     // Priority 1: Context-based (works with everything)
     if (context != null) {
@@ -189,7 +190,28 @@ class RaccoonService extends ChangeNotifier {
       }
     }
 
-    return null;
+    // Priority 3: Auto-discover from widget tree.
+    // This is a zero-config fallback that works with GetX, GoRouter, and
+    // any other navigation solution — no setup required.
+    return _discoverNavigator();
+  }
+
+  /// Walks the widget tree from the root to find the deepest mounted
+  /// [NavigatorState]. Prefer the deepest (most nested) navigator to avoid
+  /// pushing on a parent overlay that may be obscured.
+  ///
+  /// This traversal only runs when neither a [BuildContext] nor a navigator
+  /// provider resolves a navigator, so performance impact is negligible.
+  NavigatorState? _discoverNavigator() {
+    NavigatorState? result;
+    void visitor(Element element) {
+      if (element is StatefulElement && element.state is NavigatorState) {
+        result = element.state as NavigatorState;
+      }
+      element.visitChildElements(visitor);
+    }
+    WidgetsBinding.instance.rootElement?.visitChildElements(visitor);
+    return result;
   }
 
   void _setInspectorOpened(bool value) {

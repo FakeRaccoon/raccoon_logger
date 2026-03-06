@@ -26,20 +26,25 @@ class Raccoon {
 
   /// Opens the inspector UI.
   ///
-  /// **Recommended:** Always provide [context] for maximum compatibility.
-  /// This works with all navigation solutions (MaterialApp, GoRouter, GetX,
-  /// Auto_route, Beamer, etc.) with zero configuration.
+  /// Works with **all navigation solutions** (MaterialApp, GetX, GoRouter,
+  /// Auto_route, Beamer, etc.) with **zero configuration required**.
   ///
-  /// Example:
+  /// Resolution priority:
+  /// 1. **Context** — most explicit, works everywhere when provided.
+  /// 2. **Navigator provider** — optional, set via [setNavigatorProvider].
+  /// 3. **Auto-discovery** — falls back to walking the widget tree to find
+  ///    a mounted [NavigatorState] automatically. This means calling
+  ///    `showInspector()` with no arguments works out-of-the-box with GetX
+  ///    and other routers that are above the context where the button lives.
+  ///
+  /// Example (no setup needed, works with GetX):
   /// ```dart
-  /// Raccoon().showInspector(context: context);
+  /// Raccoon().showInspector();
   /// ```
   ///
-  /// **Optional:** If you need to open the inspector without context,
-  /// set up a navigator provider first:
+  /// Example (with context for explicit control):
   /// ```dart
-  /// Raccoon().setNavigatorProvider(() => myNavigatorKey.currentState!);
-  /// Raccoon().showInspector(); // No context needed
+  /// Raccoon().showInspector(context: context);
   /// ```
   Future<void> showInspector({BuildContext? context}) =>
       _service.navigateToCallListScreen(context: context);
