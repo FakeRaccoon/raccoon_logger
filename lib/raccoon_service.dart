@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:raccoon/model/raccoon_http_call.dart';
 import 'package:raccoon/model/raccoon_http_error.dart';
 import 'package:raccoon/model/raccoon_http_response.dart';
-import 'package:raccoon/view/raccoon_view.dart';
+import 'package:raccoon/view/raccoon_shell.dart';
 
 /// Singleton backing store for captured HTTP calls and inspector state.
 ///
@@ -176,12 +176,10 @@ class RaccoonService extends ChangeNotifier {
     try {
       await navigator.push(
         MaterialPageRoute<void>(
-          builder: (_) {
-            final view = RaccoonView(service: this);
-            return _themeData != null
-                ? Theme(data: _themeData!, child: view)
-                : view;
-          },
+          builder: (_) => RaccoonShell(
+            service: this,
+            themeData: _themeData,
+          ),
           fullscreenDialog: true,
         ),
       );
