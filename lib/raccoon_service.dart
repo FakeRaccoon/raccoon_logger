@@ -34,6 +34,11 @@ class RaccoonService extends ChangeNotifier {
   /// Set via [setNavigatorProvider] to provide a [NavigatorState] when needed.
   NavigatorState Function()? _navigatorProvider;
 
+  /// Optional custom [ThemeData] for the inspector UI.
+  /// When set, the inspector is wrapped in a [Theme] widget using this data.
+  /// When null, the inspector inherits the host app's active theme.
+  ThemeData? _themeData;
+
   /// Optional Dio instance for replaying requests.
   /// Set this if you want to enable request replay functionality.
   Dio? _dioInstance;
@@ -70,6 +75,20 @@ class RaccoonService extends ChangeNotifier {
   /// ```
   void setDioInstance(Dio dio) {
     _dioInstance = dio;
+  }
+
+  /// Set a custom [ThemeData] to style the Raccoon inspector UI.
+  ///
+  /// When set, the inspector is wrapped in a [Theme] widget with this data,
+  /// overriding the host app's active theme inside the inspector.
+  /// Pass `null` to revert to inheriting the host app's theme.
+  ///
+  /// Example:
+  /// ```dart
+  /// RaccoonService().setTheme(ThemeData.dark());
+  /// ```
+  void setTheme(ThemeData? theme) {
+    _themeData = theme;
   }
 
   /// Get the configured Dio instance for replaying requests.
@@ -157,7 +176,12 @@ class RaccoonService extends ChangeNotifier {
     try {
       await navigator.push(
         MaterialPageRoute<void>(
-          builder: (_) => RaccoonView(service: this),
+          builder: (_) {
+            final view = RaccoonView(service: this);
+            return _themeData != null
+                ? Theme(data: _themeData!, child: view)
+                : view;
+          },
           fullscreenDialog: true,
         ),
       );

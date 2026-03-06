@@ -95,4 +95,30 @@ class Raccoon {
   void setDioInstance(Dio dio) {
     _service.setDioInstance(dio);
   }
+
+  /// Set a custom [ThemeData] to style the Raccoon inspector UI.
+  ///
+  /// When set, the inspector is wrapped in a [Theme] widget with this data,
+  /// overriding the host app's active theme inside the inspector.
+  /// Pass `null` to revert to inheriting the host app's theme.
+  ///
+  /// Example — dark theme:
+  /// ```dart
+  /// Raccoon().setTheme(ThemeData.dark());
+  /// ```
+  ///
+  /// Example — custom color scheme:
+  /// ```dart
+  /// Raccoon().setTheme(
+  ///   ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal)),
+  /// );
+  /// ```
+  ///
+  /// Example — revert to host app theme:
+  /// ```dart
+  /// Raccoon().setTheme(null);
+  /// ```
+  void setTheme(ThemeData? theme) {
+    _service.setTheme(theme);
+  }
 }
