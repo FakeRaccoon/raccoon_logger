@@ -1,3 +1,21 @@
+## 0.4.0
+
+* **BREAKING CHANGE**: Bumped minimum SDK and platform requirements
+  * Dart SDK: `>=3.10.1`
+  * Flutter SDK: `>=3.38.3`
+  * iOS: 13+
+  * Android: API 24 (Android 7.0 Nougat)+
+  * macOS: 10.15 Catalina+
+  * Windows: 10+
+  * Linux: Ubuntu 20.04 LTS+ / Debian 10+
+  * Web: Chrome 96+, Firefox 99+, Safari 15.6+, Edge 96+
+
+## 0.3.0
+
+* **Improvement**: Request body in Headers tab is now rendered as `SelectableText`
+  * Users can now select and copy request body content directly from the UI
+  * Replaces the previous non-selectable `RaccoonRowWidget` layout
+
 ## 0.2.0
 
 * **BREAKING CHANGE**: Simplified navigation API for universal compatibility

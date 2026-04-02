@@ -147,10 +147,7 @@ class RaccoonHeadersWidget extends StatelessWidget {
                       ),
                     ),
                     collapsed: const SizedBox.shrink(),
-                    expanded: RaccoonRowWidget(
-                      title: "Body",
-                      body: _formatRequestBody(),
-                    ),
+                    expanded: SelectableText(_formatRequestBody()),
                   ),
                 ],
                 if ((call.request?.formDataFields ?? []).isNotEmpty) ...[

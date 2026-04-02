@@ -389,7 +389,8 @@ class RaccoonStatsView extends StatelessWidget {
       final statusCode = call.response?.status;
       if (statusCode != null) {
         final status = statusCode.toString();
-        statusCodeDistribution[status] = (statusCodeDistribution[status] ?? 0) + 1;
+        statusCodeDistribution[status] =
+            (statusCodeDistribution[status] ?? 0) + 1;
 
         // Success/Error counts
         if (statusCode >= 200 && statusCode < 300) {
@@ -406,7 +407,8 @@ class RaccoonStatsView extends StatelessWidget {
       }
 
       // Methods
-      methodDistribution[call.method] = (methodDistribution[call.method] ?? 0) + 1;
+      methodDistribution[call.method] =
+          (methodDistribution[call.method] ?? 0) + 1;
 
       // Duration
       totalDuration += call.duration;
