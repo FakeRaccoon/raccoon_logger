@@ -183,7 +183,24 @@ class _RaccoonViewState extends State<RaccoonView> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text("${call.createdTime}"),
-                        Text("${call.duration} ms"),
+                        Row(
+                          children: [
+                            if (call.duration >= 500)
+                              const Padding(
+                                padding: EdgeInsets.only(right: 4),
+                                child: ColorFiltered(
+                                  colorFilter: ColorFilter.matrix(<double>[
+                                    0.2126, 0.7152, 0.0722, 0, 0,
+                                    0.2126, 0.7152, 0.0722, 0, 0,
+                                    0.2126, 0.7152, 0.0722, 0, 0,
+                                    0,      0,      0,      1, 0,
+                                  ]),
+                                  child: Text('🐢', style: TextStyle(fontSize: 12)),
+                                ),
+                              ),
+                            Text("${call.duration} ms"),
+                          ],
+                        ),
                       ],
                     ),
                   ],
