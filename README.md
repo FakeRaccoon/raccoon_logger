@@ -10,6 +10,19 @@ Raccoon Logger is a lightweight in-app HTTP inspector for Flutter applications. 
 - Search field inside the inspector to quickly filter calls by method, endpoint, host, or status.
 - Detail screens for headers, payloads, and errors with copy-to-clipboard helpers.
 
+## Requirements
+
+| | Minimum |
+|---|---|
+| Dart SDK | 3.10.1 |
+| Flutter SDK | 3.38.3 |
+| iOS | 13 |
+| Android | API 24 (Android 7.0) |
+| macOS | 10.15 Catalina |
+| Windows | 10 |
+| Linux | Ubuntu 20.04 / Debian 10 |
+| Web | Chrome 96, Firefox 99, Safari 15.6, Edge 96 |
+
 ## Installation
 
 Add the package to your `pubspec.yaml`:
@@ -24,84 +37,66 @@ Then run `flutter pub get`.
 
 ## Quick Start
 
-### Setup (Works with all navigation solutions)
-
-1. **Create your `Dio` client with the interceptor**
-
-   ```dart
-   final dio = Dio()
-     ..interceptors.add(RaccoonInterceptor());
-   ```
-
-2. **Add the draggable inspector button**
-
-   **For MaterialApp.router (GoRouter, Auto_route, etc.):**
-   ```dart
-   MaterialApp.router(
-     routerConfig: router,
-     builder: (context, child) {
-       return Stack(
-         children: [
-           child!,
-           const RaccoonOverlayWidget(),
-         ],
-       );
-     },
-   )
-   ```
-
-   **For MaterialApp (traditional):**
-   ```dart
-   class HomePage extends StatelessWidget {
-     const HomePage({super.key});
-
-     @override
-     Widget build(BuildContext context) {
-       return Scaffold(
-         body: Stack(
-           children: const [
-             // ... your content ...
-             RaccoonOverlayWidget(),
-           ],
-         ),
-       );
-     }
-   }
-   ```
-
-3. **Open the inspector programmatically** (optional)
-
-   ```dart
-   ElevatedButton(
-     onPressed: () => Raccoon().showInspector(context: context),
-     child: const Text('Open Inspector'),
-   )
-   ```
-
-That's it! The overlay button and context-based navigation work with **all Flutter navigation solutions** (MaterialApp, GoRouter, GetX, Auto_route, Beamer, etc.) with zero configuration.
-
-### Advanced: Navigator Provider (Optional)
-
-If you need to open the inspector without context (rare cases), you can set up a navigator provider:
+### Setup (Universal Approach - Works for All Apps)
 
 ```dart
-// MaterialApp
+// 1. Create your Dio client with the interceptor
+final dio = Dio()
+  ..interceptors.add(RaccoonInterceptor());
+
+// 2. Set up a navigator key (works with MaterialApp, GoRouter, etc.)
 final navigatorKey = GlobalKey<NavigatorState>();
-MaterialApp(navigatorKey: navigatorKey, ...);
-Raccoon().setNavigatorProvider(() => navigatorKey.currentState!);
 
-// GoRouter
-final rootNavigatorKey = GlobalKey<NavigatorState>();
-final router = GoRouter(navigatorKey: rootNavigatorKey, ...);
-Raccoon().setNavigatorProvider(() => rootNavigatorKey.currentState!);
+void main() {
+  runApp(MyApp());
+}
 
-// GetX - just use context (recommended)
-Raccoon().showInspector(context: context);
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    // Configure navigator provider - works everywhere!
+    Raccoon().setNavigatorProvider(() => navigatorKey.currentState!);
+    
+    return MaterialApp(
+      navigatorKey: navigatorKey,
+      // or MaterialApp.router with navigatorKey parameter
+      builder: (context, child) {
+        return Stack(
+          children: [
+            child!,
+            const RaccoonOverlayWidget(), // Draggable inspector button
+          ],
+        );
+      },
+    );
+  }
+}
 ```
+
+That's it! The overlay button now works with **all Flutter navigation solutions**.
 
 ### Usage
 
-- **Filter captured calls** by tapping the search icon in the inspector's app bar. The inline search field matches method, endpoint, host, and status code so you can narrow noisy sessions quickly.
+- **Tap the floating button** to open the inspector
+- **Drag the button** to reposition it (it snaps to edges)
+- **Filter calls** by tapping the search icon in the inspector
+
+### Configuration Options
+
+**When you DON'T need `setNavigatorProvider`:**
+- Placing `RaccoonOverlayWidget` inside a Scaffold/Screen (context has Navigator access)
+
+**When you DO need `setNavigatorProvider`:**
+- Router-based apps (GoRouter, Auto_route, etc.)
+- Placing overlay at app root (outside Navigator tree)
+- Opening inspector programmatically without context
+
+| Setup | Need setNavigatorProvider? |
+|-------|---------------------------|
+| MaterialApp with navigatorKey | ✅ No (if set up like above) |
+| GoRouter / Auto_route | ✅ Yes (use rootNavigatorKey) |
+| Inside Scaffold/Screen | ❌ No |
+| App root (outside Navigator) | ✅ Yes |
 
 ## Service API Cheatsheet
 
@@ -136,4 +131,4 @@ The context-based navigation approach works seamlessly with all frameworks. No s
 
 ## Contributing
 
-Issues and pull requests are welcome! Please include reproduction steps and, if possible, failing tests when reporting bugs.
+Issues and pull requests are welcome! Please include reproduction steps, and if possible, failing tests when reporting bugs.

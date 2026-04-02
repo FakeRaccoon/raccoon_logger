@@ -133,6 +133,23 @@ class RaccoonHeadersWidget extends StatelessWidget {
                     },
                   ),
                 ),
+                if (_shouldShowRequestBody()) ...[
+                  const SizedBox(height: 8),
+                  ExpandablePanel(
+                    theme: const ExpandableThemeData(
+                      headerAlignment: ExpandablePanelHeaderAlignment.center,
+                    ),
+                    header: const Text(
+                      "Request Body",
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
+                    ),
+                    collapsed: const SizedBox.shrink(),
+                    expanded: SelectableText(_formatRequestBody()),
+                  ),
+                ],
                 if ((call.request?.formDataFields ?? []).isNotEmpty) ...[
                   const SizedBox(height: 8),
                   ExpandablePanel(
@@ -203,5 +220,32 @@ class RaccoonHeadersWidget extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// Check if request body should be displayed
+  /// Show body if it's not empty and not "Form Data" placeholder
+  bool _shouldShowRequestBody() {
+    final body = call.request?.body;
+    if (body == null) return false;
+
+    // Don't show if it's empty
+    if (body is String && body.isEmpty) return false;
+
+    // Don't show if it's the "Form Data" placeholder (form data is shown separately)
+    if (body is String && body == "Form Data") return false;
+
+    return true;
+  }
+
+  /// Format request body for display
+  String _formatRequestBody() {
+    final body = call.request?.body;
+    if (body == null) return 'Empty';
+
+    // If it's already a string, return it
+    if (body is String) return body;
+
+    // Otherwise convert to string (for Map, List, etc.)
+    return body.toString();
   }
 }

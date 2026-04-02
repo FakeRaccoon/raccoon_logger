@@ -91,10 +91,12 @@ class RaccoonFormatter {
         } else {
           // Text content between tags
           final nextTag = xml.indexOf('<', i);
-          final content = xml.substring(
-            i,
-            nextTag == -1 ? xml.length : nextTag,
-          ).trim();
+          final content = xml
+              .substring(
+                i,
+                nextTag == -1 ? xml.length : nextTag,
+              )
+              .trim();
 
           if (content.isNotEmpty) {
             result.write(content);
@@ -171,7 +173,7 @@ class RaccoonFormatter {
       if (trimmed[i] == '"') {
         final end = _findStringEnd(trimmed, i + 1);
         final isKey = end < trimmed.length - 1 &&
-                     trimmed.substring(end + 1).trimLeft().startsWith(':');
+            trimmed.substring(end + 1).trimLeft().startsWith(':');
 
         spans.add(TextSpan(
           text: trimmed.substring(i, end + 1),
@@ -248,7 +250,9 @@ class RaccoonFormatter {
   }
 
   static bool _isDigitOrSign(String char) {
-    return char == '-' || char == '+' || (char.codeUnitAt(0) >= 48 && char.codeUnitAt(0) <= 57);
+    return char == '-' ||
+        char == '+' ||
+        (char.codeUnitAt(0) >= 48 && char.codeUnitAt(0) <= 57);
   }
 
   static List<TextSpan> _highlightXml(String xml) {
