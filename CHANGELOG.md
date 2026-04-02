@@ -1,4 +1,4 @@
-## 0.4.0
+## 0.3.0
 
 * **BREAKING CHANGE**: Bumped minimum SDK and platform requirements
   * Dart SDK: `>=3.10.1`
@@ -10,7 +10,24 @@
   * Linux: Ubuntu 20.04 LTS+ / Debian 10+
   * Web: Chrome 96+, Firefox 99+, Safari 15.6+, Edge 96+
 
-## 0.3.0
+* **Feature**: Auto-discover navigator from widget tree as zero-config fallback
+  * Inspector can now open without any navigator setup in most apps
+
+* **Feature**: Expanded Statistics screen
+  * Per-endpoint aggregation with avg, min, and max duration per unique endpoint
+  * Timeline bar chart showing request activity over time, with error buckets highlighted in red
+  * Data transfer totals showing total bytes sent and received
+  * Slow requests list (>500ms) sorted by duration with proportional bar indicator
+  * Failed requests list (4xx/5xx and network errors) with tappable rows navigating to detail view
+
+* **Improvement**: Slow API indicator in request list
+  * Requests taking longer than 500ms are marked with a 🐢 icon (monochrome) next to the duration
+
+* **Improvement**: Minimalistic Statistics UI
+  * Replaced colored stat cards with a compact inline overview row
+  * Thinner progress bars, removed card/border decoration from list items
+  * Section headers use smaller label style with inline subtitles
+  * Colors adapt to light/dark theme via `colorScheme`
 
 * **Improvement**: Request body in Headers tab is now rendered as `SelectableText`
   * Users can now select and copy request body content directly from the UI
