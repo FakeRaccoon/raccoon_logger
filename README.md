@@ -87,7 +87,7 @@ That's it! The overlay button now works with **all Flutter navigation solutions*
 - Placing `RaccoonOverlayWidget` inside a Scaffold/Screen (context has Navigator access)
 
 **When you DO need `setNavigatorProvider`:**
-- Router-based apps (GoRouter, Auto_route, etc.)
+- Router-based apps (GoRouter, Auto_route, Beamer, GetX, etc.)
 - Placing overlay at app root (outside Navigator tree)
 - Opening inspector programmatically without context
 
@@ -98,11 +98,22 @@ That's it! The overlay button now works with **all Flutter navigation solutions*
 | Inside Scaffold/Screen | ❌ No |
 | App root (outside Navigator) | ✅ Yes |
 
+**Discord Webhook for Slow API Calls:**
+You can optionally receive Discord notifications when an API call is considered slow. This feature is activated only when you provide a Discord webhook URL.
+
+```dart
+Raccoon().setDiscordConfig(
+  url: 'https://discord.com/api/webhooks/...',
+  threshold: 1000, // Optional: default is 500ms
+);
+```
+
 ## Service API Cheatsheet
 
 - `Raccoon().showInspector(context: context)` – opens the inspector UI (recommended: always provide context)
 - `Raccoon().setNavigatorProvider(() => navigatorKey.currentState!)` – optional navigator provider for opening inspector without context
 - `Raccoon().setDioInstance(dio)` – enables request replay functionality
+- `Raccoon().setDiscordConfig(url: url, threshold: threshold)` – enables Discord notifications for slow API calls
 - `Raccoon().calls` – read-only list of captured HTTP calls
 - `Raccoon().isInspectorOpened` – listen for inspector visibility changes
 - `Raccoon().listenable` – attach to a `ListenableBuilder`/`AnimatedBuilder` for custom dashboards

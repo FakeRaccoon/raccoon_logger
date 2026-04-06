@@ -1,3 +1,12 @@
+## 0.4.0
+
+* **Feature**: Discord Webhook for Slow API Calls
+  * Added optional Discord notification system for slow API calls
+  * Configurable threshold (default: 500ms) for determining slow calls
+  * Sends rich Discord embeds with method, endpoint, duration, status, and server details
+  * Background execution ensures no impact on application performance
+  * Activated only when a Discord webhook URL is provided via `Raccoon().setDiscordConfig()`
+
 ## 0.3.0
 
 * **BREAKING CHANGE**: Bumped minimum SDK and platform requirements

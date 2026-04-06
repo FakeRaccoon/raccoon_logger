@@ -38,6 +38,12 @@ class RaccoonService extends ChangeNotifier {
   /// Set this if you want to enable request replay functionality.
   Dio? _dioInstance;
 
+  /// Optional Discord webhook URL for slow call notifications.
+  String? _discordWebhookUrl;
+
+  /// Threshold in milliseconds for slow call notifications.
+  int _slowCallThreshold = 500;
+
   /// Set a navigator provider for opening the inspector without context.
   ///
   /// This is OPTIONAL - most apps should just pass context to
@@ -72,6 +78,16 @@ class RaccoonService extends ChangeNotifier {
     _dioInstance = dio;
   }
 
+  /// Set Discord webhook configuration for slow call notifications.
+  ///
+  /// [url] is the Discord webhook URL.
+  /// [threshold] is the duration in milliseconds above which a call is
+  /// considered slow (default is 500ms).
+  void setDiscordConfig({required String url, int threshold = 500}) {
+    _discordWebhookUrl = url;
+    _slowCallThreshold = threshold;
+  }
+
   /// Get the configured Dio instance for replaying requests.
   Dio? get dioInstance => _dioInstance;
 
@@ -102,8 +118,10 @@ class RaccoonService extends ChangeNotifier {
     if (index != -1) {
       final seed = _calls[index];
       final int duration = res.time.difference(seed.createdTime).inMilliseconds;
-      _calls[index] = seed.copyWith(response: res, duration: duration);
+      final updatedCall = seed.copyWith(response: res, duration: duration);
+      _calls[index] = updatedCall;
       notifyListeners();
+      _sendDiscordNotification(updatedCall);
     } else {
       log('No call found with id $requestId to update the response.');
     }
@@ -117,10 +135,60 @@ class RaccoonService extends ChangeNotifier {
       final seed = _calls[index];
       final int duration =
           DateTime.now().difference(seed.createdTime).inMilliseconds;
-      _calls[index] = seed.copyWith(error: error, duration: duration);
+      final updatedCall = seed.copyWith(error: error, duration: duration);
+      _calls[index] = updatedCall;
       notifyListeners();
+      _sendDiscordNotification(updatedCall);
     } else {
       log('No call found with id $requestId to update the response.');
+    }
+  }
+
+  /// Sends a Discord notification if the call duration exceeds the threshold.
+  Future<void> _sendDiscordNotification(RaccoonHttpCall call) async {
+    final url = _discordWebhookUrl;
+    if (url == null || call.duration < _slowCallThreshold) {
+      return;
+    }
+
+    try {
+      final dio = Dio();
+      await dio.post(
+        url,
+        data: {
+          "embeds": [
+            {
+              "title": "🦝 Slow API Call Detected",
+              "color": 16753920, // Orange
+              "fields": [
+                {
+                  "name": "Endpoint",
+                  "value": "`${call.method} ${call.endpoint}`",
+                  "inline": false
+                },
+                {
+                  "name": "Duration",
+                  "value": "`${call.duration}ms`",
+                  "inline": true
+                },
+                {
+                  "name": "Status",
+                  "value": "`${call.response?.status ?? 'Error'}`",
+                  "inline": true
+                },
+                {
+                  "name": "Server",
+                  "value": "`${call.server}`",
+                  "inline": false
+                },
+              ],
+              "timestamp": DateTime.now().toIso8601String(),
+            }
+          ]
+        },
+      );
+    } catch (e) {
+      log('RaccoonService: Failed to send Discord notification: $e');
     }
   }
 
