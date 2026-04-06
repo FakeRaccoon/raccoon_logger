@@ -90,10 +90,14 @@ class _RaccoonDetailViewState extends State<RaccoonDetailView> {
             children: [
               if (response != null) ...[
                 _buildResultRow(
-                    'Status', response.statusCode?.toString() ?? 'N/A'),
+                  'Status',
+                  response.statusCode?.toString() ?? 'N/A',
+                ),
                 const SizedBox(height: 8),
                 _buildResultRow(
-                    'Status Message', response.statusMessage ?? 'N/A'),
+                  'Status Message',
+                  response.statusMessage ?? 'N/A',
+                ),
                 const SizedBox(height: 16),
                 const Text(
                   'Response Body:',
@@ -150,9 +154,7 @@ class _RaccoonDetailViewState extends State<RaccoonDetailView> {
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
         ),
-        Expanded(
-          child: Text(value),
-        ),
+        Expanded(child: Text(value)),
       ],
     );
   }
@@ -168,32 +170,24 @@ class _RaccoonDetailViewState extends State<RaccoonDetailView> {
             dividerHeight: 0,
             labelStyle: TextStyle(fontWeight: FontWeight.bold),
             tabs: [
-              Tab(
-                text: "Headers",
-              ),
-              Tab(
-                text: "Response",
-              ),
-              Tab(
-                text: "Error",
-              ),
+              Tab(text: "Headers"),
+              Tab(text: "Response"),
+              Tab(text: "Error"),
             ],
           ),
         ),
         floatingActionButton: FloatingActionButton(
-          onPressed: () => Clipboard.setData(
-            ClipboardData(text: widget.call.request!.curl),
-          ),
-          child: const Icon(
-            Icons.copy,
-          ),
+          onPressed: () =>
+              Clipboard.setData(ClipboardData(text: widget.call.request!.curl)),
+          child: const Icon(Icons.copy),
         ),
         body: TabBarView(
           children: [
             RaccoonHeadersWidget(
               call: widget.call,
-              onReplay:
-                  RaccoonService().dioInstance != null ? _handleReplay : null,
+              onReplay: RaccoonService().dioInstance != null
+                  ? _handleReplay
+                  : null,
               isReplaying: _isReplaying,
             ),
             RaccoonResponseWidget(call: widget.call),

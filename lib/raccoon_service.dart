@@ -42,7 +42,7 @@ class RaccoonService extends ChangeNotifier {
   String? _discordWebhookUrl;
 
   /// Threshold in milliseconds for slow call notifications.
-  int _slowCallThreshold = 500;
+  int _slowCallThreshold = 0;
 
   /// Set a navigator provider for opening the inspector without context.
   ///
@@ -82,8 +82,8 @@ class RaccoonService extends ChangeNotifier {
   ///
   /// [url] is the Discord webhook URL.
   /// [threshold] is the duration in milliseconds above which a call is
-  /// considered slow (default is 500ms).
-  void setDiscordConfig({required String url, int threshold = 500}) {
+  /// considered slow.
+  void setDiscordConfig({required String url, required int threshold}) {
     _discordWebhookUrl = url;
     _slowCallThreshold = threshold;
   }
@@ -93,8 +93,9 @@ class RaccoonService extends ChangeNotifier {
 
   final List<RaccoonHttpCall> _calls = <RaccoonHttpCall>[];
 
-  final ValueNotifier<bool> _isInspectorOpenedNotifier =
-      ValueNotifier<bool>(false);
+  final ValueNotifier<bool> _isInspectorOpenedNotifier = ValueNotifier<bool>(
+    false,
+  );
 
   /// Read-only view of captured calls in insertion order.
   UnmodifiableListView<RaccoonHttpCall> get calls =>
@@ -133,8 +134,9 @@ class RaccoonService extends ChangeNotifier {
 
     if (index != -1) {
       final seed = _calls[index];
-      final int duration =
-          DateTime.now().difference(seed.createdTime).inMilliseconds;
+      final int duration = DateTime.now()
+          .difference(seed.createdTime)
+          .inMilliseconds;
       final updatedCall = seed.copyWith(error: error, duration: duration);
       _calls[index] = updatedCall;
       notifyListeners();
@@ -164,27 +166,33 @@ class RaccoonService extends ChangeNotifier {
                 {
                   "name": "Endpoint",
                   "value": "`${call.method} ${call.endpoint}`",
-                  "inline": false
+                  "inline": false,
                 },
                 {
                   "name": "Duration",
                   "value": "`${call.duration}ms`",
-                  "inline": true
+                  "inline": true,
                 },
                 {
                   "name": "Status",
                   "value": "`${call.response?.status ?? 'Error'}`",
-                  "inline": true
+                  "inline": true,
                 },
                 {
                   "name": "Server",
                   "value": "`${call.server}`",
-                  "inline": false
+                  "inline": false,
                 },
+                if (call.request?.curl != null)
+                  {
+                    "name": "cURL",
+                    "value": "```\n${call.request!.curl}\n```",
+                    "inline": false,
+                  },
               ],
               "timestamp": DateTime.now().toIso8601String(),
-            }
-          ]
+            },
+          ],
         },
       );
     } catch (e) {
@@ -216,8 +224,10 @@ class RaccoonService extends ChangeNotifier {
 
     final navigator = _resolveNavigator(context);
     if (navigator == null) {
-      log('RaccoonService: Unable to find a Navigator. '
-          'Provide context or set up a navigator provider via setNavigatorProvider().');
+      log(
+        'RaccoonService: Unable to find a Navigator. '
+        'Provide context or set up a navigator provider via setNavigatorProvider().',
+      );
       return;
     }
 
@@ -278,6 +288,7 @@ class RaccoonService extends ChangeNotifier {
       }
       element.visitChildElements(visitor);
     }
+
     WidgetsBinding.instance.rootElement?.visitChildElements(visitor);
     return result;
   }

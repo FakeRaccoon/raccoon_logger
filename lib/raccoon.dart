@@ -103,18 +103,18 @@ class Raccoon {
 
   /// Set Discord webhook configuration for slow call notifications.
   ///
-  /// This feature is optional and activated when a [url] is provided.
+  /// [url] is the Discord webhook URL.
   /// [threshold] is the duration in milliseconds above which a call is
-  /// considered slow (default is 500ms).
+  /// considered slow.
   ///
   /// Example:
   /// ```dart
   /// Raccoon().setDiscordConfig(
   ///   url: 'https://discord.com/api/webhooks/...',
-  ///   threshold: 1000,
+  ///   threshold: 500,
   /// );
   /// ```
-  void setDiscordConfig({required String url, int threshold = 500}) {
+  void setDiscordConfig({required String url, required int threshold}) {
     _service.setDiscordConfig(url: url, threshold: threshold);
   }
 }

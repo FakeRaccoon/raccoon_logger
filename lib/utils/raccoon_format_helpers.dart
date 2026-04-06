@@ -15,15 +15,7 @@ class RaccoonFormatHelpers {
 
   /// Formats duration in milliseconds to human-readable string
   static String formatDuration(int milliseconds) {
-    if (milliseconds < 1000) {
-      return '$milliseconds ms';
-    } else if (milliseconds < 60000) {
-      return '${(milliseconds / 1000).toStringAsFixed(2)} s';
-    } else {
-      final minutes = milliseconds ~/ 60000;
-      final seconds = (milliseconds % 60000) / 1000;
-      return '${minutes}m ${seconds.toStringAsFixed(1)}s';
-    }
+    return '$milliseconds ms';
   }
 
   /// Formats DateTime to relative time (e.g., "2 minutes ago")
@@ -67,7 +59,7 @@ class RaccoonFormatHelpers {
       'Sep',
       'Oct',
       'Nov',
-      'Dec'
+      'Dec',
     ];
     return '${months[timestamp.month - 1]} ${timestamp.day}, ${formatTime(timestamp)}';
   }

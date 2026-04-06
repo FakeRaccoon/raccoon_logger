@@ -1,3 +1,36 @@
+## 0.5.0
+
+* **Feature**: Waterfall chart in Statistics screen
+  * Per-request horizontal timeline with proportional bars relative to session start
+  * Grid lines and axis labels showing time offsets in ms
+  * Color-coded bars: green (fast), orange (slow >500ms), red (error)
+  * Legend and tooltip with method, endpoint, duration, and status
+  * Tappable rows navigate to the request detail view
+
+* **Improvement**: Statistics screen UI overhaul
+  * Overview restructured into a 2-row grid (Total/Success/Failed + Avg/Slow/Transfer) — no more truncated labels
+  * Success, Failed, and Slow values are color-coded when non-zero
+  * Transfer data (sent/received) promoted into the overview grid
+  * Section headers now have a small vertical accent bar for visual hierarchy
+  * Distribution bars taller (5px) with rounded corners; percentage and count shown in separate columns
+  * Endpoint and slow-request progress bars bumped to 3px
+
+* **Improvement**: Duration formatting always uses ms
+  * All durations across the app are now displayed in milliseconds (e.g. `1300 ms` instead of `1.30 s`)
+
+* **Improvement**: Discord webhook — cURL command included in notification
+  * Slow API call embeds now include the full cURL command for easy reproduction
+  * cURL field is omitted if request data is unavailable
+
+* **Breaking**: Discord config requires explicit `threshold` — no more default 500ms
+  * Both `url` and `threshold` are now required in `Raccoon().setDiscordConfig()`
+  * Ensures notifications are never sent without intentional configuration
+
+* **Feature**: Export statistics as Markdown
+  * Download button in the Statistics app bar generates a full `.md` report
+  * Includes overview table, status codes, methods, endpoints, slow requests, and failed requests
+  * Report is shown in a copyable bottom sheet with one-tap clipboard copy
+
 ## 0.4.0
 
 * **Feature**: Discord Webhook for Slow API Calls

@@ -97,10 +97,7 @@ class RaccoonInterceptor extends InterceptorsWrapper with RaccoonAdapter {
       var httpResponse = RaccoonHttpResponse();
 
       if (response.data == null) {
-        httpResponse = httpResponse.copyWith(
-          body: "",
-          size: 0,
-        );
+        httpResponse = httpResponse.copyWith(body: "", size: 0);
       } else {
         httpResponse = httpResponse.copyWith(
           body: response.data,
@@ -130,38 +127,25 @@ class RaccoonInterceptor extends InterceptorsWrapper with RaccoonAdapter {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
-    var httpError = RaccoonHttpError(
-      error: err.toString(),
-    );
+    var httpError = RaccoonHttpError(error: err.toString());
 
     if (err is Error) {
       final basicError = err as Error;
-      httpError = httpError.copyWith(
-        stackTrace: basicError.stackTrace,
-      );
+      httpError = httpError.copyWith(stackTrace: basicError.stackTrace);
     }
 
     service.addError(httpError, err.requestOptions.hashCode);
 
-    var httpResponse = RaccoonHttpResponse(
-      time: DateTime.now(),
-    );
+    var httpResponse = RaccoonHttpResponse(time: DateTime.now());
 
     if (err.response == null) {
-      httpResponse = httpResponse.copyWith(
-        status: -1,
-      );
+      httpResponse = httpResponse.copyWith(status: -1);
       service.addResponse(httpResponse, err.requestOptions.hashCode);
     } else {
-      httpResponse = httpResponse.copyWith(
-        status: err.response?.statusCode,
-      );
+      httpResponse = httpResponse.copyWith(status: err.response?.statusCode);
 
       if (err.response!.data == null) {
-        httpResponse = httpResponse.copyWith(
-          body: "",
-          size: 0,
-        );
+        httpResponse = httpResponse.copyWith(body: "", size: 0);
       } else {
         httpResponse = httpResponse.copyWith(
           body: err.response?.data,
@@ -175,14 +159,9 @@ class RaccoonInterceptor extends InterceptorsWrapper with RaccoonAdapter {
         headers[header] = values.toString();
       });
 
-      httpResponse = httpResponse.copyWith(
-        headers: headers,
-      );
+      httpResponse = httpResponse.copyWith(headers: headers);
 
-      service.addResponse(
-        httpResponse,
-        err.response!.requestOptions.hashCode,
-      );
+      service.addResponse(httpResponse, err.response!.requestOptions.hashCode);
     }
     return handler.next(err);
   }

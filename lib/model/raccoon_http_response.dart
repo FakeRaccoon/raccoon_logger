@@ -32,11 +32,5 @@ class RaccoonHttpResponse with EquatableMixin {
   }
 
   @override
-  List<Object?> get props => [
-        status,
-        size,
-        time,
-        body,
-        headers,
-      ];
+  List<Object?> get props => [status, size, time, body, headers];
 }

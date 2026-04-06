@@ -13,9 +13,7 @@ class RaccoonRowWidget extends StatelessWidget {
       children: [
         SelectableText(
           "$title: ",
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-          ),
+          style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         SelectableText(body),
       ],

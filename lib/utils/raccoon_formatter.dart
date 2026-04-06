@@ -5,10 +5,7 @@ import 'package:flutter/material.dart';
 /// Utility class for formatting and syntax highlighting response bodies
 class RaccoonFormatter {
   /// Detects the content type from headers or body
-  static String detectContentType(
-    Map<String, String>? headers,
-    dynamic body,
-  ) {
+  static String detectContentType(Map<String, String>? headers, dynamic body) {
     // Check headers first
     if (headers != null) {
       final contentType = headers['content-type'] ?? headers['Content-Type'];
@@ -92,10 +89,7 @@ class RaccoonFormatter {
           // Text content between tags
           final nextTag = xml.indexOf('<', i);
           final content = xml
-              .substring(
-                i,
-                nextTag == -1 ? xml.length : nextTag,
-              )
+              .substring(i, nextTag == -1 ? xml.length : nextTag)
               .trim();
 
           if (content.isNotEmpty) {
@@ -119,19 +113,18 @@ class RaccoonFormatter {
       return SelectableText.rich(
         TextSpan(
           children: lines
-              .map((line) => TextSpan(
-                    children: [
-                      ..._highlightJsonLine(line),
-                      const TextSpan(text: '\n'),
-                    ],
-                  ))
+              .map(
+                (line) => TextSpan(
+                  children: [
+                    ..._highlightJsonLine(line),
+                    const TextSpan(text: '\n'),
+                  ],
+                ),
+              )
               .expand((span) => span.children!)
               .toList(),
         ),
-        style: const TextStyle(
-          fontFamily: 'monospace',
-          fontSize: 12,
-        ),
+        style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
       );
     } catch (e) {
       return SelectableText(json);
@@ -141,13 +134,8 @@ class RaccoonFormatter {
   /// Creates a syntax-highlighted widget for XML
   static Widget buildXmlWidget(String xml) {
     return SelectableText.rich(
-      TextSpan(
-        children: _highlightXml(xml),
-      ),
-      style: const TextStyle(
-        fontFamily: 'monospace',
-        fontSize: 12,
-      ),
+      TextSpan(children: _highlightXml(xml)),
+      style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
     );
   }
 
@@ -172,16 +160,19 @@ class RaccoonFormatter {
       // String keys (property names)
       if (trimmed[i] == '"') {
         final end = _findStringEnd(trimmed, i + 1);
-        final isKey = end < trimmed.length - 1 &&
+        final isKey =
+            end < trimmed.length - 1 &&
             trimmed.substring(end + 1).trimLeft().startsWith(':');
 
-        spans.add(TextSpan(
-          text: trimmed.substring(i, end + 1),
-          style: TextStyle(
-            color: isKey ? Colors.purple[700] : Colors.green[700],
-            fontWeight: isKey ? FontWeight.bold : FontWeight.normal,
+        spans.add(
+          TextSpan(
+            text: trimmed.substring(i, end + 1),
+            style: TextStyle(
+              color: isKey ? Colors.purple[700] : Colors.green[700],
+              fontWeight: isKey ? FontWeight.bold : FontWeight.normal,
+            ),
           ),
-        ));
+        );
         i = end + 1;
         continue;
       }
@@ -190,10 +181,12 @@ class RaccoonFormatter {
       if (_isDigitOrSign(trimmed[i])) {
         final match = RegExp(r'-?\d+\.?\d*').matchAsPrefix(trimmed, i);
         if (match != null) {
-          spans.add(TextSpan(
-            text: match.group(0),
-            style: TextStyle(color: Colors.blue[700]),
-          ));
+          spans.add(
+            TextSpan(
+              text: match.group(0),
+              style: TextStyle(color: Colors.blue[700]),
+            ),
+          );
           i = match.end;
           continue;
         }
@@ -206,28 +199,32 @@ class RaccoonFormatter {
         final word = trimmed.substring(i).startsWith('true')
             ? 'true'
             : trimmed.substring(i).startsWith('false')
-                ? 'false'
-                : 'null';
-        spans.add(TextSpan(
-          text: word,
-          style: TextStyle(
-            color: Colors.orange[700],
-            fontWeight: FontWeight.bold,
+            ? 'false'
+            : 'null';
+        spans.add(
+          TextSpan(
+            text: word,
+            style: TextStyle(
+              color: Colors.orange[700],
+              fontWeight: FontWeight.bold,
+            ),
           ),
-        ));
+        );
         i += word.length;
         continue;
       }
 
       // Structural characters
       if ('{[]},:'.contains(trimmed[i])) {
-        spans.add(TextSpan(
-          text: trimmed[i],
-          style: const TextStyle(
-            color: Colors.grey,
-            fontWeight: FontWeight.bold,
+        spans.add(
+          TextSpan(
+            text: trimmed[i],
+            style: const TextStyle(
+              color: Colors.grey,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-        ));
+        );
         i++;
         continue;
       }
@@ -262,10 +259,12 @@ class RaccoonFormatter {
     for (final line in lines) {
       // Tag
       if (line.trim().startsWith('<')) {
-        spans.add(TextSpan(
-          text: line,
-          style: TextStyle(color: Colors.blue[700]),
-        ));
+        spans.add(
+          TextSpan(
+            text: line,
+            style: TextStyle(color: Colors.blue[700]),
+          ),
+        );
       } else {
         // Content
         spans.add(TextSpan(text: line));

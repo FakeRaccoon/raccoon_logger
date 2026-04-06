@@ -9,9 +9,7 @@ class RaccoonErrorWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (call.error == null) {
-      return const Center(
-        child: Text("There is no error"),
-      );
+      return const Center(child: Text("There is no error"));
     }
     return Padding(
       padding: const EdgeInsets.all(16),

@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:raccoon/model/raccoon_http_call.dart';
 import 'package:raccoon/raccoon_service.dart';
 import 'package:raccoon/utils/raccoon_format_helpers.dart';
@@ -17,7 +18,24 @@ class RaccoonStatsView extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Statistics')),
+      appBar: AppBar(
+        title: const Text('Statistics'),
+        actions: [
+          AnimatedBuilder(
+            animation: service,
+            builder: (context, _) => service.calls.isEmpty
+                ? const SizedBox.shrink()
+                : IconButton(
+                    icon: const Icon(Icons.file_download_outlined),
+                    tooltip: 'Export as Markdown',
+                    onPressed: () => _showMarkdownExport(
+                      context,
+                      _calculateStats(service.calls),
+                    ),
+                  ),
+          ),
+        ],
+      ),
       body: AnimatedBuilder(
         animation: service,
         builder: (context, _) {
@@ -28,7 +46,7 @@ class RaccoonStatsView extends StatelessWidget {
               child: Text(
                 'No data available',
                 style: textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurface.withOpacity(0.4),
+                  color: colorScheme.onSurface.withValues(alpha: 0.4),
                 ),
               ),
             );
@@ -42,14 +60,12 @@ class RaccoonStatsView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildOverview(context, stats),
-                const SizedBox(height: 12),
-                _buildTransfer(context, stats),
                 const SizedBox(height: 28),
                 _buildSection(
                   context,
-                  'Timeline',
-                  _buildTimeline(context, stats),
-                  subtitle: '${stats.timelineBuckets.length} buckets',
+                  'Waterfall',
+                  _buildWaterfall(context, calls),
+                  subtitle: '${calls.length} requests',
                 ),
                 const SizedBox(height: 28),
                 _buildSection(
@@ -119,75 +135,131 @@ class RaccoonStatsView extends StatelessWidget {
   // ── Overview ──────────────────────────────────────────────────────────────
 
   Widget _buildOverview(BuildContext context, _Stats stats) {
-    final items = [
-      ('Total', stats.totalCalls.toString()),
-      ('Success', stats.successCount.toString()),
-      ('Failed', stats.errorCount.toString()),
-      ('Avg', RaccoonFormatHelpers.formatDuration(stats.avgResponseTime.round())),
-      ('Slow >500ms', stats.slowCount.toString()),
-    ];
-
-    return Row(
-      children: items.expand((item) sync* {
-        yield Expanded(child: _buildOverviewItem(context, item.$1, item.$2));
-        if (item != items.last) {
-          yield VerticalDivider(
-            width: 1,
-            thickness: 1,
-            color: Theme.of(context).dividerColor,
-          );
-        }
-      }).toList(),
-    );
-  }
-
-  Widget _buildTransfer(BuildContext context, _Stats stats) {
     final onSurface = Theme.of(context).colorScheme.onSurface;
-    return Row(
+    final divider = Container(
+      width: 1,
+      height: 36,
+      color: onSurface.withValues(alpha: 0.08),
+    );
+
+    return Column(
       children: [
-        Icon(Icons.arrow_upward, size: 11, color: onSurface.withOpacity(0.4)),
-        const SizedBox(width: 4),
-        Text(
-          RaccoonFormatHelpers.formatBytes(stats.totalBytesSent),
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: onSurface.withOpacity(0.6),
+        // Row 1: Total · Success · Failed
+        IntrinsicHeight(
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildOverviewItem(
+                  context,
+                  'Total',
+                  stats.totalCalls.toString(),
+                ),
+              ),
+              divider,
+              Expanded(
+                child: _buildOverviewItem(
+                  context,
+                  'Success',
+                  stats.successCount.toString(),
+                  valueColor: stats.successCount > 0 ? Colors.green : null,
+                ),
+              ),
+              divider,
+              Expanded(
+                child: _buildOverviewItem(
+                  context,
+                  'Failed',
+                  stats.errorCount.toString(),
+                  valueColor: stats.errorCount > 0 ? Colors.red : null,
+                ),
+              ),
+            ],
           ),
         ),
-        const SizedBox(width: 16),
-        Icon(Icons.arrow_downward, size: 11, color: onSurface.withOpacity(0.4)),
-        const SizedBox(width: 4),
-        Text(
-          RaccoonFormatHelpers.formatBytes(stats.totalBytesReceived),
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: onSurface.withOpacity(0.6),
+        Container(height: 1, color: onSurface.withValues(alpha: 0.08)),
+        // Row 2: Avg · Slow · Transfer
+        IntrinsicHeight(
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildOverviewItem(
+                  context,
+                  'Avg',
+                  RaccoonFormatHelpers.formatDuration(
+                    stats.avgResponseTime.round(),
+                  ),
+                ),
+              ),
+              divider,
+              Expanded(
+                child: _buildOverviewItem(
+                  context,
+                  'Slow >500ms',
+                  stats.slowCount.toString(),
+                  valueColor: stats.slowCount > 0 ? Colors.orange : null,
+                ),
+              ),
+              divider,
+              Expanded(child: _buildTransferItem(context, stats)),
+            ],
           ),
         ),
       ],
     );
   }
 
-  Widget _buildOverviewItem(BuildContext context, String label, String value) {
+  Widget _buildTransferItem(BuildContext context, _Stats stats) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.arrow_upward,
+                size: 10,
+                color: onSurface.withValues(alpha: 0.4),
+              ),
+              const SizedBox(width: 3),
+              Text(
+                RaccoonFormatHelpers.formatBytes(stats.totalBytesSent),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: onSurface.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 3),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.arrow_downward,
+                size: 10,
+                color: onSurface.withValues(alpha: 0.4),
+              ),
+              const SizedBox(width: 3),
+              Text(
+                RaccoonFormatHelpers.formatBytes(stats.totalBytesReceived),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: onSurface.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 2),
           Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.45),
+            'Transfer',
+            style: TextStyle(
+              fontSize: 10,
+              color: onSurface.withValues(alpha: 0.4),
             ),
           ),
         ],
@@ -195,69 +267,229 @@ class RaccoonStatsView extends StatelessWidget {
     );
   }
 
-  // ── Timeline ──────────────────────────────────────────────────────────────
+  Widget _buildOverviewItem(
+    BuildContext context,
+    String label,
+    String value, {
+    Color? valueColor,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: valueColor,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 3),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.45),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-  Widget _buildTimeline(BuildContext context, _Stats stats) {
-    if (stats.timelineBuckets.isEmpty) return _emptyLabel(context, 'No data');
+  // ── Waterfall ─────────────────────────────────────────────────────────────
+
+  Widget _buildWaterfall(BuildContext context, List<RaccoonHttpCall> calls) {
+    final sorted = List<RaccoonHttpCall>.from(
+      calls.where((c) => c.response?.status != null || c.error != null),
+    )..sort((a, b) => a.createdTime.compareTo(b.createdTime));
+
+    if (sorted.isEmpty) return _emptyLabel(context, 'No data');
+
+    final sessionStart = sorted.first.createdTime;
+    final sessionEnd = sorted.fold(
+      sorted.first.createdTime.add(
+        Duration(milliseconds: sorted.first.duration),
+      ),
+      (latest, c) {
+        final end = c.createdTime.add(Duration(milliseconds: c.duration));
+        return end.isAfter(latest) ? end : latest;
+      },
+    );
+    final totalMs = sessionEnd
+        .difference(sessionStart)
+        .inMilliseconds
+        .clamp(1, 999999);
 
     final onSurface = Theme.of(context).colorScheme.onSurface;
-    final maxCount =
-        stats.timelineBuckets.map((b) => b.count).reduce(max);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          height: 48,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: stats.timelineBuckets.map((bucket) {
-              final fraction =
-                  maxCount > 0 ? bucket.count / maxCount : 0.0;
-              final hasErrors = bucket.errorCount > 0;
-
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 1),
-                  child: FractionallySizedBox(
-                    alignment: Alignment.bottomCenter,
-                    heightFactor: fraction.clamp(0.05, 1.0),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: hasErrors
-                            ? Colors.red.withOpacity(0.55)
-                            : onSurface.withOpacity(0.18),
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(2),
-                        ),
+        // axis labels
+        Padding(
+          padding: const EdgeInsets.only(left: 120, bottom: 4),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              const labelCount = 4;
+              return Row(
+                children: List.generate(labelCount + 1, (i) {
+                  final ms = (totalMs * i / labelCount).round();
+                  return Expanded(
+                    child: Text(
+                      '${ms}ms',
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: onSurface.withValues(alpha: 0.35),
                       ),
+                      textAlign: i == labelCount
+                          ? TextAlign.right
+                          : TextAlign.left,
                     ),
-                  ),
-                ),
+                  );
+                }),
               );
-            }).toList(),
+            },
           ),
         ),
-        const SizedBox(height: 4),
+        // rows
+        ...sorted.map((call) {
+          final startMs = call.createdTime
+              .difference(sessionStart)
+              .inMilliseconds;
+          final startFraction = startMs / totalMs;
+          final widthFraction = (call.duration / totalMs).clamp(
+            0.005,
+            1.0 - startFraction,
+          );
+          final isError =
+              call.error != null ||
+              (call.response?.status != null && call.response!.status! >= 400);
+          final isSlow = call.duration > 500;
+
+          final barColor = isError
+              ? Colors.red.withValues(alpha: 0.8)
+              : isSlow
+              ? Colors.orange.withValues(alpha: 0.8)
+              : Colors.green.withValues(alpha: 0.75);
+
+          final durationLabel = '${call.duration}ms';
+
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 120,
+                  child: Text(
+                    call.endpoint.split('/').last,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: onSurface.withValues(alpha: 0.65),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final barLeft = constraints.maxWidth * startFraction;
+                      final barWidth = (constraints.maxWidth * widthFraction)
+                          .clamp(4.0, constraints.maxWidth - barLeft);
+                      return SizedBox(
+                        height: 14,
+                        child: Stack(
+                          children: [
+                            // grid lines
+                            for (int i = 1; i < 4; i++)
+                              Positioned(
+                                left: constraints.maxWidth * i / 4,
+                                top: 0,
+                                bottom: 0,
+                                child: Container(
+                                  width: 1,
+                                  color: onSurface.withValues(alpha: 0.06),
+                                ),
+                              ),
+                            // bar
+                            Positioned(
+                              left: barLeft,
+                              width: barWidth,
+                              top: 0,
+                              bottom: 0,
+                              child: Tooltip(
+                                message:
+                                    '${call.method} ${call.endpoint}\n$durationLabel · ${call.response?.status ?? 'error'}',
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: barColor,
+                                    borderRadius: BorderRadius.circular(2),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 6),
+                SizedBox(
+                  width: 44,
+                  child: Text(
+                    durationLabel,
+                    style: TextStyle(
+                      fontSize: 10,
+                      color: isError
+                          ? Colors.red
+                          : isSlow
+                          ? Colors.orange
+                          : onSurface.withValues(alpha: 0.45),
+                    ),
+                    textAlign: TextAlign.right,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+        const SizedBox(height: 8),
+        // legend
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
+            const SizedBox(width: 120),
+            _waterfallLegendDot(Colors.green.withValues(alpha: 0.75)),
+            const SizedBox(width: 4),
             Text(
-              RaccoonFormatHelpers.formatTimestamp(
-                stats.timelineBuckets.first.time,
-              ),
+              'Fast',
               style: TextStyle(
                 fontSize: 10,
-                color: onSurface.withOpacity(0.35),
+                color: onSurface.withValues(alpha: 0.5),
               ),
             ),
+            const SizedBox(width: 12),
+            _waterfallLegendDot(Colors.orange.withValues(alpha: 0.8)),
+            const SizedBox(width: 4),
             Text(
-              RaccoonFormatHelpers.formatTimestamp(
-                stats.timelineBuckets.last.time,
-              ),
+              'Slow >500ms',
               style: TextStyle(
                 fontSize: 10,
-                color: onSurface.withOpacity(0.35),
+                color: onSurface.withValues(alpha: 0.5),
+              ),
+            ),
+            const SizedBox(width: 12),
+            _waterfallLegendDot(Colors.red.withValues(alpha: 0.8)),
+            const SizedBox(width: 4),
+            Text(
+              'Error',
+              style: TextStyle(
+                fontSize: 10,
+                color: onSurface.withValues(alpha: 0.5),
               ),
             ),
           ],
@@ -265,6 +497,15 @@ class RaccoonStatsView extends StatelessWidget {
       ],
     );
   }
+
+  Widget _waterfallLegendDot(Color color) => Container(
+    width: 10,
+    height: 10,
+    decoration: BoxDecoration(
+      color: color,
+      borderRadius: BorderRadius.circular(2),
+    ),
+  );
 
   // ── Endpoints ─────────────────────────────────────────────────────────────
 
@@ -283,7 +524,7 @@ class RaccoonStatsView extends StatelessWidget {
         return Column(
           children: [
             if (index > 0)
-              Divider(height: 1, color: onSurface.withOpacity(0.08)),
+              Divider(height: 1, color: onSurface.withValues(alpha: 0.08)),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Row(
@@ -301,15 +542,13 @@ class RaccoonStatsView extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 4),
-                        ClipRRect(
+                        LinearProgressIndicator(
+                          value: fraction.clamp(0.0, 1.0),
+                          minHeight: 3,
                           borderRadius: BorderRadius.circular(2),
-                          child: LinearProgressIndicator(
-                            value: fraction.clamp(0.0, 1.0),
-                            minHeight: 2,
-                            backgroundColor: onSurface.withOpacity(0.08),
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              avgColor.withOpacity(0.4),
-                            ),
+                          backgroundColor: onSurface.withValues(alpha: 0.08),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            avgColor.withValues(alpha: 0.4),
                           ),
                         ),
                         const SizedBox(height: 3),
@@ -319,7 +558,7 @@ class RaccoonStatsView extends StatelessWidget {
                           'max ${RaccoonFormatHelpers.formatDuration(ep.maxDuration)}',
                           style: TextStyle(
                             fontSize: 10,
-                            color: onSurface.withOpacity(0.4),
+                            color: onSurface.withValues(alpha: 0.4),
                           ),
                         ),
                       ],
@@ -342,7 +581,7 @@ class RaccoonStatsView extends StatelessWidget {
                         '${ep.count}×',
                         style: TextStyle(
                           fontSize: 11,
-                          color: onSurface.withOpacity(0.4),
+                          color: onSurface.withValues(alpha: 0.4),
                         ),
                       ),
                     ],
@@ -373,7 +612,7 @@ class RaccoonStatsView extends StatelessWidget {
         return Column(
           children: [
             if (index > 0)
-              Divider(height: 1, color: onSurface.withOpacity(0.08)),
+              Divider(height: 1, color: onSurface.withValues(alpha: 0.08)),
             InkWell(
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
@@ -397,15 +636,13 @@ class RaccoonStatsView extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 4),
-                          ClipRRect(
+                          LinearProgressIndicator(
+                            value: fraction.clamp(0.0, 1.0),
+                            minHeight: 3,
                             borderRadius: BorderRadius.circular(2),
-                            child: LinearProgressIndicator(
-                              value: fraction.clamp(0.0, 1.0),
-                              minHeight: 2,
-                              backgroundColor: onSurface.withOpacity(0.08),
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                durationColor.withOpacity(0.5),
-                              ),
+                            backgroundColor: onSurface.withValues(alpha: 0.08),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              durationColor.withValues(alpha: 0.5),
                             ),
                           ),
                         ],
@@ -428,7 +665,7 @@ class RaccoonStatsView extends StatelessWidget {
                           _statusText(call),
                           style: TextStyle(
                             fontSize: 11,
-                            color: onSurface.withOpacity(0.4),
+                            color: onSurface.withValues(alpha: 0.4),
                           ),
                         ),
                       ],
@@ -452,13 +689,13 @@ class RaccoonStatsView extends StatelessWidget {
         final isNetworkError = call.error != null && statusCode == null;
         final statusColor =
             (isNetworkError || (statusCode != null && statusCode >= 500))
-                ? Colors.red
-                : Colors.orange;
+            ? Colors.red
+            : Colors.orange;
 
         return Column(
           children: [
             if (index > 0)
-              Divider(height: 1, color: onSurface.withOpacity(0.08)),
+              Divider(height: 1, color: onSurface.withValues(alpha: 0.08)),
             InkWell(
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
@@ -487,7 +724,7 @@ class RaccoonStatsView extends StatelessWidget {
                               call.error?.error?.toString() ?? 'Network error',
                               style: TextStyle(
                                 fontSize: 11,
-                                color: Colors.red.withOpacity(0.7),
+                                color: Colors.red.withValues(alpha: 0.7),
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -514,7 +751,7 @@ class RaccoonStatsView extends StatelessWidget {
                             RaccoonFormatHelpers.formatDuration(call.duration),
                             style: TextStyle(
                               fontSize: 11,
-                              color: onSurface.withOpacity(0.4),
+                              color: onSurface.withValues(alpha: 0.4),
                             ),
                           ),
                         ],
@@ -538,18 +775,27 @@ class RaccoonStatsView extends StatelessWidget {
     Widget content, {
     String? subtitle,
   }) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            Container(
+              width: 3,
+              height: 13,
+              decoration: BoxDecoration(
+                color: onSurface.withValues(alpha: 0.25),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(width: 7),
             Text(
               title,
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.3,
               ),
             ),
             if (subtitle != null) ...[
@@ -557,15 +803,13 @@ class RaccoonStatsView extends StatelessWidget {
               Text(
                 subtitle,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.onSurface.withOpacity(0.4),
+                  color: onSurface.withValues(alpha: 0.4),
                 ),
               ),
             ],
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 12),
         content,
       ],
     );
@@ -575,7 +819,7 @@ class RaccoonStatsView extends StatelessWidget {
     return Text(
       message,
       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-        color: Theme.of(context).colorScheme.onSurface.withOpacity(0.35),
+        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.35),
       ),
     );
   }
@@ -618,23 +862,37 @@ class RaccoonStatsView extends StatelessWidget {
                   borderRadius: BorderRadius.circular(2),
                   child: LinearProgressIndicator(
                     value: fraction,
-                    minHeight: 3,
-                    backgroundColor: onSurface.withOpacity(0.08),
+                    minHeight: 5,
+                    borderRadius: BorderRadius.circular(3),
+                    backgroundColor: onSurface.withValues(alpha: 0.08),
                     valueColor: AlwaysStoppedAnimation<Color>(
-                      color.withOpacity(0.7),
+                      color.withValues(alpha: 0.7),
                     ),
                   ),
                 ),
               ),
               const SizedBox(width: 10),
               SizedBox(
-                width: 48,
+                width: 32,
                 child: Text(
-                  '$pct% · ${entry.value}',
+                  '$pct%',
                   textAlign: TextAlign.right,
                   style: TextStyle(
                     fontSize: 11,
-                    color: onSurface.withOpacity(0.5),
+                    fontWeight: FontWeight.w500,
+                    color: onSurface.withValues(alpha: 0.6),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              SizedBox(
+                width: 22,
+                child: Text(
+                  '${entry.value}',
+                  textAlign: TextAlign.right,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: onSurface.withValues(alpha: 0.35),
                   ),
                 ),
               ),
@@ -643,6 +901,165 @@ class RaccoonStatsView extends StatelessWidget {
         );
       }).toList(),
     );
+  }
+
+  // ── Markdown export ───────────────────────────────────────────────────────
+
+  void _showMarkdownExport(BuildContext context, _Stats stats) {
+    final md = _generateMarkdown(stats);
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.6,
+        maxChildSize: 0.9,
+        builder: (context, scrollController) => Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
+              child: Row(
+                children: [
+                  const Text(
+                    'raccoon_stats.md',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.copy, size: 20),
+                    tooltip: 'Copy',
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: md));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Copied to clipboard'),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: SingleChildScrollView(
+                controller: scrollController,
+                padding: const EdgeInsets.all(16),
+                child: SelectableText(
+                  md,
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _generateMarkdown(_Stats stats) {
+    final buf = StringBuffer();
+    final now = DateTime.now();
+    buf.writeln('# Raccoon Stats Report');
+    buf.writeln(
+      '_Generated ${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} '
+      '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}_',
+    );
+    buf.writeln();
+
+    // Overview
+    buf.writeln('## Overview');
+    buf.writeln();
+    buf.writeln('| Metric | Value |');
+    buf.writeln('|--------|-------|');
+    buf.writeln('| Total requests | ${stats.totalCalls} |');
+    buf.writeln('| Successful (2xx) | ${stats.successCount} |');
+    buf.writeln('| Failed | ${stats.errorCount} |');
+    buf.writeln('| Slow (>500ms) | ${stats.slowCount} |');
+    buf.writeln(
+      '| Avg response time | ${RaccoonFormatHelpers.formatDuration(stats.avgResponseTime.round())} |',
+    );
+    buf.writeln(
+      '| Data sent | ${RaccoonFormatHelpers.formatBytes(stats.totalBytesSent)} |',
+    );
+    buf.writeln(
+      '| Data received | ${RaccoonFormatHelpers.formatBytes(stats.totalBytesReceived)} |',
+    );
+    buf.writeln();
+
+    // Status codes
+    buf.writeln('## Status Codes');
+    buf.writeln();
+    buf.writeln('| Code | Count | % |');
+    buf.writeln('|------|-------|---|');
+    for (final e in stats.statusCodeDistribution.entries) {
+      final pct = (e.value / stats.totalCalls * 100).toStringAsFixed(1);
+      buf.writeln('| ${e.key} | ${e.value} | $pct% |');
+    }
+    buf.writeln();
+
+    // Methods
+    buf.writeln('## Methods');
+    buf.writeln();
+    buf.writeln('| Method | Count | % |');
+    buf.writeln('|--------|-------|---|');
+    for (final e in stats.methodDistribution.entries) {
+      final pct = (e.value / stats.totalCalls * 100).toStringAsFixed(1);
+      buf.writeln('| ${e.key} | ${e.value} | $pct% |');
+    }
+    buf.writeln();
+
+    // Endpoints
+    if (stats.endpointStats.isNotEmpty) {
+      buf.writeln('## Endpoints');
+      buf.writeln();
+      buf.writeln('| Method | Endpoint | Count | Avg | Min | Max |');
+      buf.writeln('|--------|----------|-------|-----|-----|-----|');
+      for (final ep in stats.endpointStats) {
+        buf.writeln(
+          '| ${ep.method} | ${ep.endpoint} | ${ep.count} '
+          '| ${RaccoonFormatHelpers.formatDuration(ep.avgDuration)} '
+          '| ${RaccoonFormatHelpers.formatDuration(ep.minDuration)} '
+          '| ${RaccoonFormatHelpers.formatDuration(ep.maxDuration)} |',
+        );
+      }
+      buf.writeln();
+    }
+
+    // Slow requests
+    if (stats.slowCalls.isNotEmpty) {
+      buf.writeln('## Slow Requests (>500ms)');
+      buf.writeln();
+      buf.writeln('| Method | Endpoint | Duration | Status |');
+      buf.writeln('|--------|----------|----------|--------|');
+      for (final call in stats.slowCalls) {
+        buf.writeln(
+          '| ${call.method} | ${call.endpoint} '
+          '| ${RaccoonFormatHelpers.formatDuration(call.duration)} '
+          '| ${_statusText(call)} |',
+        );
+      }
+      buf.writeln();
+    }
+
+    // Failed requests
+    if (stats.failedCalls.isNotEmpty) {
+      buf.writeln('## Failed Requests');
+      buf.writeln();
+      buf.writeln('| Method | Endpoint | Status | Error |');
+      buf.writeln('|--------|----------|--------|-------|');
+      for (final call in stats.failedCalls) {
+        final error = call.error?.error?.toString() ?? '';
+        buf.writeln(
+          '| ${call.method} | ${call.endpoint} '
+          '| ${_statusText(call)} | $error |',
+        );
+      }
+      buf.writeln();
+    }
+
+    return buf.toString();
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -725,19 +1142,18 @@ class RaccoonStatsView extends StatelessWidget {
       totalBytesReceived += call.response?.size ?? 0;
     }
 
-    final slowCalls = completedCalls
-        .where((c) => c.duration > 500)
-        .toList()
+    final slowCalls = completedCalls.where((c) => c.duration > 500).toList()
       ..sort((a, b) => b.duration.compareTo(a.duration));
 
-    final failedCalls = calls
-        .where(
-          (c) =>
-              c.error != null ||
-              (c.response?.status != null && c.response!.status! >= 400),
-        )
-        .toList()
-      ..sort((a, b) => b.createdTime.compareTo(a.createdTime));
+    final failedCalls =
+        calls
+            .where(
+              (c) =>
+                  c.error != null ||
+                  (c.response?.status != null && c.response!.status! >= 400),
+            )
+            .toList()
+          ..sort((a, b) => b.createdTime.compareTo(a.createdTime));
 
     return _Stats(
       totalCalls: totalCalls,
@@ -748,17 +1164,19 @@ class RaccoonStatsView extends StatelessWidget {
       methodDistribution: methodDistribution,
       slowCalls: slowCalls,
       failedCalls: failedCalls,
-      maxDuration:
-          slowCalls.isEmpty ? 1 : slowCalls.first.duration.clamp(1, 999999),
+      maxDuration: slowCalls.isEmpty
+          ? 1
+          : slowCalls.first.duration.clamp(1, 999999),
       slowCount: completedCalls.where((c) => c.duration > 500).length,
       endpointStats: _buildEndpointStats(completedCalls),
-      timelineBuckets: _buildTimelineBuckets(calls),
       totalBytesSent: totalBytesSent,
       totalBytesReceived: totalBytesReceived,
     );
   }
 
-  List<_EndpointStat> _buildEndpointStats(List<RaccoonHttpCall> completedCalls) {
+  List<_EndpointStat> _buildEndpointStats(
+    List<RaccoonHttpCall> completedCalls,
+  ) {
     final durationMap = <String, List<int>>{};
     final methodMap = <String, String>{};
     final endpointMap = <String, String>{};
@@ -783,42 +1201,7 @@ class RaccoonStatsView extends StatelessWidget {
         minDuration: minD,
         maxDuration: maxD,
       );
-    }).toList()
-      ..sort((a, b) => b.avgDuration.compareTo(a.avgDuration));
-  }
-
-  List<_TimelineBucket> _buildTimelineBuckets(List<RaccoonHttpCall> calls) {
-    if (calls.isEmpty) return [];
-
-    final sorted = List<RaccoonHttpCall>.from(calls)
-      ..sort((a, b) => a.createdTime.compareTo(b.createdTime));
-
-    final start = sorted.first.createdTime;
-    final end = sorted.last.createdTime;
-    final spanMs = end.difference(start).inMilliseconds;
-
-    // Aim for ~20 buckets, minimum 1 second each
-    final bucketMs = spanMs <= 0 ? 1000 : max(1000, spanMs ~/ 20);
-
-    final bucketMap = <int, _TimelineBucket>{};
-
-    for (final call in sorted) {
-      final offsetMs = call.createdTime.difference(start).inMilliseconds;
-      final bucketIndex = offsetMs ~/ bucketMs;
-      final bucketTime = start.add(Duration(milliseconds: bucketIndex * bucketMs));
-      final isError = call.error != null ||
-          (call.response?.status != null && call.response!.status! >= 400);
-
-      final existing = bucketMap[bucketIndex];
-      bucketMap[bucketIndex] = _TimelineBucket(
-        time: bucketTime,
-        count: (existing?.count ?? 0) + 1,
-        errorCount: (existing?.errorCount ?? 0) + (isError ? 1 : 0),
-      );
-    }
-
-    return bucketMap.values.toList()
-      ..sort((a, b) => a.time.compareTo(b.time));
+    }).toList()..sort((a, b) => b.avgDuration.compareTo(a.avgDuration));
   }
 }
 
@@ -836,7 +1219,6 @@ class _Stats {
   final int maxDuration;
   final int slowCount;
   final List<_EndpointStat> endpointStats;
-  final List<_TimelineBucket> timelineBuckets;
   final int totalBytesSent;
   final int totalBytesReceived;
 
@@ -852,7 +1234,6 @@ class _Stats {
     required this.maxDuration,
     required this.slowCount,
     required this.endpointStats,
-    required this.timelineBuckets,
     required this.totalBytesSent,
     required this.totalBytesReceived,
   });
@@ -873,18 +1254,6 @@ class _EndpointStat {
     required this.avgDuration,
     required this.minDuration,
     required this.maxDuration,
-  });
-}
-
-class _TimelineBucket {
-  final DateTime time;
-  final int count;
-  final int errorCount;
-
-  _TimelineBucket({
-    required this.time,
-    required this.count,
-    required this.errorCount,
   });
 }
 

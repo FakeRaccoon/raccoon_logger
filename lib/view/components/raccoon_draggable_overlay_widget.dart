@@ -91,10 +91,7 @@ class RaccoonOverlayWidgetState extends State<RaccoonOverlayWidget>
                     shape: BoxShape.circle,
                   ),
                   child: const Center(
-                    child: Icon(
-                      Icons.bug_report,
-                      color: Colors.black,
-                    ),
+                    child: Icon(Icons.bug_report, color: Colors.black),
                   ),
                 ),
               ),

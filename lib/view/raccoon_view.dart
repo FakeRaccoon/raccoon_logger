@@ -190,12 +190,31 @@ class _RaccoonViewState extends State<RaccoonView> {
                                 padding: EdgeInsets.only(right: 4),
                                 child: ColorFiltered(
                                   colorFilter: ColorFilter.matrix(<double>[
-                                    0.2126, 0.7152, 0.0722, 0, 0,
-                                    0.2126, 0.7152, 0.0722, 0, 0,
-                                    0.2126, 0.7152, 0.0722, 0, 0,
-                                    0,      0,      0,      1, 0,
+                                    0.2126,
+                                    0.7152,
+                                    0.0722,
+                                    0,
+                                    0,
+                                    0.2126,
+                                    0.7152,
+                                    0.0722,
+                                    0,
+                                    0,
+                                    0.2126,
+                                    0.7152,
+                                    0.0722,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    0,
+                                    1,
+                                    0,
                                   ]),
-                                  child: Text('🐢', style: TextStyle(fontSize: 12)),
+                                  child: Text(
+                                    '🐢',
+                                    style: TextStyle(fontSize: 12),
+                                  ),
                                 ),
                               ),
                             Text("${call.duration} ms"),
@@ -211,8 +230,9 @@ class _RaccoonViewState extends State<RaccoonView> {
                         width: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 5,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(Colors.green),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.green,
+                          ),
                         ),
                       )
                     : Text(
@@ -226,10 +246,10 @@ class _RaccoonViewState extends State<RaccoonView> {
                 onTap: call.response?.status == null
                     ? null
                     : () => Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => RaccoonDetailView(call: call),
-                          ),
+                        MaterialPageRoute<void>(
+                          builder: (_) => RaccoonDetailView(call: call),
                         ),
+                      ),
               );
             },
             separatorBuilder: (BuildContext context, int index) {

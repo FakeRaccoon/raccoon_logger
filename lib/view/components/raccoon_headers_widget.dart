@@ -47,19 +47,13 @@ class RaccoonHeadersWidget extends StatelessWidget {
                   ),
                   header: const Text(
                     "General",
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
                   ),
                   collapsed: const SizedBox.shrink(),
                   expanded: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      RaccoonRowWidget(
-                        title: "Request URL",
-                        body: call.uri,
-                      ),
+                      RaccoonRowWidget(title: "Request URL", body: call.uri),
                       const SizedBox(height: 8),
                       RaccoonRowWidget(
                         title: "Request Method",
@@ -80,10 +74,7 @@ class RaccoonHeadersWidget extends StatelessWidget {
                   ),
                   header: const Text(
                     "Request Headers",
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
                   ),
                   collapsed: const SizedBox.shrink(),
                   expanded: ListView.separated(
@@ -110,10 +101,7 @@ class RaccoonHeadersWidget extends StatelessWidget {
                   ),
                   header: const Text(
                     "Response Headers",
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
                   ),
                   collapsed: const SizedBox.shrink(),
                   expanded: ListView.separated(

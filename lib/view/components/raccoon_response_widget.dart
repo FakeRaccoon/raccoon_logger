@@ -18,9 +18,7 @@ class _RaccoonResponseWidgetState extends State<RaccoonResponseWidget> {
   @override
   Widget build(BuildContext context) {
     if (widget.call.response?.body == null) {
-      return const Center(
-        child: Text("There is no response"),
-      );
+      return const Center(child: Text("There is no response"));
     }
 
     final body = widget.call.response!.body;
@@ -35,9 +33,7 @@ class _RaccoonResponseWidgetState extends State<RaccoonResponseWidget> {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
             color: Colors.grey[100],
-            border: Border(
-              bottom: BorderSide(color: Colors.grey[300]!),
-            ),
+            border: Border(bottom: BorderSide(color: Colors.grey[300]!)),
           ),
           child: Row(
             children: [
@@ -47,8 +43,10 @@ class _RaccoonResponseWidgetState extends State<RaccoonResponseWidget> {
                     segments: const [
                       ButtonSegment(
                         value: true,
-                        label:
-                            Text('Formatted', style: TextStyle(fontSize: 12)),
+                        label: Text(
+                          'Formatted',
+                          style: TextStyle(fontSize: 12),
+                        ),
                         icon: Icon(Icons.code, size: 16),
                       ),
                       ButtonSegment(
