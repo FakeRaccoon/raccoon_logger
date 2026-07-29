@@ -1,3 +1,29 @@
+## Unreleased
+
+* **Fix**: Error stack traces are now captured. The previous `err is Error`
+  check was always false for `DioException`; the interceptor now uses
+  `err.stackTrace` directly.
+* **Fix**: A single slow failed call no longer posts to Discord twice. The
+  notification is sent from one place (`addResponse`) only.
+* **Fix**: `onError` is now wrapped in try/catch so a parse failure can't break
+  Dio's error chain.
+* **Fix**: Web builds no longer break — removed the unused `dart:io` `Cookie`
+  import (and the dead `cookies` field it required).
+* **Fix**: Guarded force-unwraps in the Headers tab and detail view that could
+  throw for a call with no response yet.
+* **Improvement**: Captured calls are now capped at 1000 (oldest dropped) to
+  keep memory bounded in long sessions.
+* **Improvement**: One import (`package:raccoon/raccoon.dart`) now re-exports
+  the public API (`Raccoon`, `RaccoonInterceptor`, `RaccoonOverlayWidget`,
+  `RaccoonService`, `RaccoonHttpCall`).
+* **Chore**: Dropped the `expandable` dependency (Headers sections now use the
+  SDK's `ExpansionTile`); bumped `flutter_lints` to `^6.0.0`; removed dead code
+  and consolidated duplicated status/method color helpers.
+* **Breaking**: Removed unused public model fields never surfaced in the UI —
+  `RaccoonHttpCall.{client, loading, secure}`,
+  `RaccoonHttpRequest.{cookies, queryParameters}`,
+  `RaccoonHttpFormDataFile.length`.
+
 ## 0.5.0
 
 * **Improvement**: Statistics screen UI overhaul

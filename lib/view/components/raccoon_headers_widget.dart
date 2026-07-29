@@ -1,9 +1,10 @@
-import 'package:expandable/expandable.dart';
 import 'package:flutter/material.dart';
 import 'package:raccoon/model/raccoon_http_call.dart';
 import 'package:raccoon/view/components/raccoon_row_widget.dart';
 import 'package:raccoon/view/components/raccoon_summary_header.dart';
 
+/// Headers tab: general info plus expandable request/response header and
+/// form-data sections for a single [RaccoonHttpCall].
 class RaccoonHeadersWidget extends StatelessWidget {
   const RaccoonHeadersWidget({
     super.key,
@@ -18,39 +19,27 @@ class RaccoonHeadersWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    var requestHeader = call.request!.headers.entries
-        .map((entry) => {entry.key: entry.value})
-        .toList();
-
-    var responseHeader = call.response!.headers.entries
-        .map((entry) => {entry.key: entry.value})
-        .toList();
+    final requestHeaders = call.request?.headers ?? const <String, String>{};
+    final responseHeaders = call.response?.headers ?? const <String, String>{};
+    final formFields = call.request?.formDataFields ?? const [];
+    final formFiles = call.request?.formDataFiles ?? const [];
 
     return SingleChildScrollView(
       child: Column(
         children: [
-          // Summary Header
           RaccoonSummaryHeader(
             call: call,
             onReplay: onReplay,
             isReplaying: isReplaying,
           ),
-          // Rest of the content
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Column(
               children: [
-                ExpandablePanel(
-                  controller: ExpandableController(initialExpanded: true),
-                  theme: const ExpandableThemeData(
-                    headerAlignment: ExpandablePanelHeaderAlignment.center,
-                  ),
-                  header: const Text(
-                    "General",
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-                  ),
-                  collapsed: const SizedBox.shrink(),
-                  expanded: Column(
+                _section(
+                  "General",
+                  initiallyExpanded: true,
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       RaccoonRowWidget(title: "Request URL", body: call.uri),
@@ -67,146 +56,84 @@ class RaccoonHeadersWidget extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 8),
-                ExpandablePanel(
-                  theme: const ExpandableThemeData(
-                    headerAlignment: ExpandablePanelHeaderAlignment.center,
-                  ),
-                  header: const Text(
-                    "Request Headers",
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-                  ),
-                  collapsed: const SizedBox.shrink(),
-                  expanded: ListView.separated(
-                    primary: false,
-                    padding: EdgeInsets.zero,
-                    shrinkWrap: true,
-                    itemCount: requestHeader.length,
-                    itemBuilder: (context, index) {
-                      var map = requestHeader[index];
-                      return RaccoonRowWidget(
-                        title: map.keys.first,
-                        body: map.values.first,
-                      );
-                    },
-                    separatorBuilder: (BuildContext context, int index) {
-                      return const SizedBox(height: 4);
-                    },
-                  ),
+                _section("Request Headers", child: _headerRows(requestHeaders)),
+                _section(
+                  "Response Headers",
+                  child: _headerRows(responseHeaders),
                 ),
-                const SizedBox(height: 8),
-                ExpandablePanel(
-                  theme: const ExpandableThemeData(
-                    headerAlignment: ExpandablePanelHeaderAlignment.center,
+                if (_shouldShowRequestBody())
+                  _section(
+                    "Request Body",
+                    child: SelectableText(_formatRequestBody()),
                   ),
-                  header: const Text(
-                    "Response Headers",
-                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-                  ),
-                  collapsed: const SizedBox.shrink(),
-                  expanded: ListView.separated(
-                    primary: false,
-                    padding: EdgeInsets.zero,
-                    shrinkWrap: true,
-                    itemCount: responseHeader.length,
-                    itemBuilder: (context, index) {
-                      var map = responseHeader[index];
-                      return RaccoonRowWidget(
-                        title: map.keys.first,
-                        body: map.values.first,
-                      );
-                    },
-                    separatorBuilder: (BuildContext context, int index) {
-                      return const SizedBox(height: 4);
-                    },
-                  ),
-                ),
-                if (_shouldShowRequestBody()) ...[
-                  const SizedBox(height: 8),
-                  ExpandablePanel(
-                    theme: const ExpandableThemeData(
-                      headerAlignment: ExpandablePanelHeaderAlignment.center,
-                    ),
-                    header: const Text(
-                      "Request Body",
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
-                    ),
-                    collapsed: const SizedBox.shrink(),
-                    expanded: SelectableText(_formatRequestBody()),
-                  ),
-                ],
-                if ((call.request?.formDataFields ?? []).isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  ExpandablePanel(
-                    theme: const ExpandableThemeData(
-                      headerAlignment: ExpandablePanelHeaderAlignment.center,
-                    ),
-                    header: const Text(
-                      "Form Data Field",
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
-                    ),
-                    collapsed: const SizedBox.shrink(),
-                    expanded: ListView.separated(
-                      primary: false,
-                      padding: EdgeInsets.zero,
-                      shrinkWrap: true,
-                      itemCount: call.request!.formDataFields!.length,
-                      itemBuilder: (context, index) {
-                        var map = call.request!.formDataFields![index];
-                        return RaccoonRowWidget(
-                          title: map.name,
-                          body: map.value,
-                        );
-                      },
-                      separatorBuilder: (BuildContext context, int index) {
-                        return const SizedBox(height: 4);
-                      },
+                if (formFields.isNotEmpty)
+                  _section(
+                    "Form Data Field",
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final field in formFields)
+                          RaccoonRowWidget(
+                            title: field.name,
+                            body: field.value,
+                          ),
+                      ],
                     ),
                   ),
-                ],
-                if ((call.request?.formDataFiles ?? []).isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  ExpandablePanel(
-                    theme: const ExpandableThemeData(
-                      headerAlignment: ExpandablePanelHeaderAlignment.center,
-                    ),
-                    header: const Text(
-                      "Form Data Files",
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
-                    ),
-                    collapsed: const SizedBox.shrink(),
-                    expanded: ListView.separated(
-                      primary: false,
-                      padding: EdgeInsets.zero,
-                      shrinkWrap: true,
-                      itemCount: call.request!.formDataFiles!.length,
-                      itemBuilder: (context, index) {
-                        var map = call.request!.formDataFiles![index];
-                        return RaccoonRowWidget(
-                          title: map.fileName ?? "",
-                          body: map.contentType,
-                        );
-                      },
-                      separatorBuilder: (BuildContext context, int index) {
-                        return const SizedBox(height: 4);
-                      },
+                if (formFiles.isNotEmpty)
+                  _section(
+                    "Form Data Files",
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final file in formFiles)
+                          RaccoonRowWidget(
+                            title: file.fileName ?? "",
+                            body: file.contentType,
+                          ),
+                      ],
                     ),
                   ),
-                ],
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+
+  /// One collapsible section. [ExpansionTile] manages its own expansion state,
+  /// so there is no controller to dispose.
+  Widget _section(
+    String title, {
+    required Widget child,
+    bool initiallyExpanded = false,
+  }) {
+    return ExpansionTile(
+      title: Text(
+        title,
+        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+      ),
+      initiallyExpanded: initiallyExpanded,
+      tilePadding: EdgeInsets.zero,
+      shape: const Border(),
+      collapsedShape: const Border(),
+      childrenPadding: const EdgeInsets.only(bottom: 8),
+      expandedCrossAxisAlignment: CrossAxisAlignment.start,
+      children: [child],
+    );
+  }
+
+  Widget _headerRows(Map<String, String> headers) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final entry in headers.entries)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: RaccoonRowWidget(title: entry.key, body: entry.value),
+          ),
+      ],
     );
   }
 

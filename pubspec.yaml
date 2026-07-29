@@ -1,7 +1,9 @@
 name: raccoon
-description: "A new Flutter package project."
+description: "In-app HTTP inspector for Flutter/Dio: log requests, responses and errors, inspect them via a floating overlay, replay calls, export cURL/Markdown, and alert Discord on slow calls."
 version: 0.5.0
-# homepage:
+# TODO: set these to your real repo before publishing (pub.dev scoring).
+# homepage: https://github.com/<you>/raccoon
+# repository: https://github.com/<you>/raccoon
 environment:
   sdk: ^3.10.1
   flutter: ">=3.38.3"
@@ -9,11 +11,10 @@ environment:
 dependencies:
   dio: ^5.7.0
   equatable: ^2.0.7
-  expandable: ^5.0.1
   flutter:
     sdk: flutter
 
 dev_dependencies:
-  flutter_lints: ^4.0.0
+  flutter_lints: ^6.0.0
   flutter_test:
     sdk: flutter

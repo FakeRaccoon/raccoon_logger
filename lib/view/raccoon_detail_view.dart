@@ -7,6 +7,8 @@ import 'package:raccoon/view/components/raccoon_error_widget.dart';
 import 'package:raccoon/view/components/raccoon_headers_widget.dart';
 import 'package:raccoon/view/components/raccoon_response_widget.dart';
 
+/// Detail screen for a single call: Headers, Response and Error tabs, with
+/// copy-cURL and request-replay actions.
 class RaccoonDetailView extends StatefulWidget {
   const RaccoonDetailView({super.key, required this.call});
 
@@ -177,8 +179,9 @@ class _RaccoonDetailViewState extends State<RaccoonDetailView> {
           ),
         ),
         floatingActionButton: FloatingActionButton(
-          onPressed: () =>
-              Clipboard.setData(ClipboardData(text: widget.call.request!.curl)),
+          onPressed: () => Clipboard.setData(
+            ClipboardData(text: widget.call.request?.curl ?? ''),
+          ),
           child: const Icon(Icons.copy),
         ),
         body: TabBarView(

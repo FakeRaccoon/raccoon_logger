@@ -7,6 +7,14 @@ import 'package:raccoon/model/raccoon_http_call.dart';
 
 import 'raccoon_service.dart';
 
+// Barrel: one import (`package:raccoon/raccoon.dart`) exposes the full public
+// API instead of deep file paths.
+export 'package:raccoon/raccoon_interceptor.dart' show RaccoonInterceptor;
+export 'package:raccoon/raccoon_service.dart' show RaccoonService;
+export 'package:raccoon/model/raccoon_http_call.dart' show RaccoonHttpCall;
+export 'package:raccoon/view/components/raccoon_draggable_overlay_widget.dart'
+    show RaccoonOverlayWidget;
+
 /// Public facade around [RaccoonService] for quick access inside apps.
 class Raccoon {
   Raccoon._internal();

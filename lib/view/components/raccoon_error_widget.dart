@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:raccoon/model/raccoon_http_call.dart';
 
+/// Error tab: shows a call's error as selectable text, or a placeholder when
+/// there is none.
 class RaccoonErrorWidget extends StatelessWidget {
   const RaccoonErrorWidget({super.key, required this.call});
 

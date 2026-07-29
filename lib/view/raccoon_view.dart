@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:raccoon/model/raccoon_http_call.dart';
 import 'package:raccoon/raccoon_service.dart';
+import 'package:raccoon/utils/raccoon_har.dart';
 import 'package:raccoon/view/raccoon_detail_view.dart';
 import 'package:raccoon/view/raccoon_stats_view.dart';
 
+/// Inspector home screen: a searchable list of captured calls with entry
+/// points to the detail and statistics views.
 class RaccoonView extends StatefulWidget {
   const RaccoonView({super.key, required this.service});
 
@@ -67,6 +71,24 @@ class _RaccoonViewState extends State<RaccoonView> {
     });
   }
 
+  void _copyAllAsHar() {
+    final completed = widget.service.calls
+        .where((c) => c.response != null)
+        .length;
+    if (completed == 0) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No calls to export')));
+      return;
+    }
+    Clipboard.setData(
+      ClipboardData(text: RaccoonHar.generate(widget.service.calls)),
+    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Copied $completed call(s) as HAR')));
+  }
+
   bool _matchesCall(RaccoonHttpCall call) {
     if (_query.isEmpty) {
       return true;
@@ -114,6 +136,8 @@ class _RaccoonViewState extends State<RaccoonView> {
                     builder: (_) => RaccoonStatsView(service: widget.service),
                   ),
                 );
+              } else if (value == 'har') {
+                _copyAllAsHar();
               } else if (value == 'clear') {
                 widget.service.clearCalls();
               }
@@ -126,6 +150,16 @@ class _RaccoonViewState extends State<RaccoonView> {
                     Icon(Icons.bar_chart),
                     SizedBox(width: 8),
                     Text('Statistics'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'har',
+                child: Row(
+                  children: [
+                    Icon(Icons.download),
+                    SizedBox(width: 8),
+                    Text('Copy all as HAR'),
                   ],
                 ),
               ),

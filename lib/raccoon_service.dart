@@ -28,7 +28,10 @@ class RaccoonService extends ChangeNotifier {
 
   factory RaccoonService() => _instance;
 
-  static RaccoonService get instance => _instance;
+  /// Maximum number of calls retained. Oldest are dropped past this cap to
+  /// keep memory bounded in long-running sessions.
+  // ponytail: fixed ring cap, expose a setter only if someone asks for it.
+  static const int _maxCalls = 1000;
 
   /// Optional navigator provider for opening inspector without context.
   /// Set via [setNavigatorProvider] to provide a [NavigatorState] when needed.
@@ -109,6 +112,9 @@ class RaccoonService extends ChangeNotifier {
 
   void addCall(RaccoonHttpCall call) {
     _calls.add(call);
+    if (_calls.length > _maxCalls) {
+      _calls.removeAt(0);
+    }
     notifyListeners();
   }
 
@@ -140,7 +146,9 @@ class RaccoonService extends ChangeNotifier {
       final updatedCall = seed.copyWith(error: error, duration: duration);
       _calls[index] = updatedCall;
       notifyListeners();
-      _sendDiscordNotification(updatedCall);
+      // Discord notification is fired from addResponse only; every terminal
+      // path (success or error) also calls addResponse, so notifying here too
+      // would double-post.
     } else {
       log('No call found with id $requestId to update the response.');
     }

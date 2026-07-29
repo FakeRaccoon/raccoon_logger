@@ -1,5 +1,36 @@
+import 'package:flutter/material.dart';
+
 /// Utility functions for formatting sizes, times, and other data
 class RaccoonFormatHelpers {
+  /// Color for an HTTP status code. Null or -1 (network error) is treated as
+  /// an error (red).
+  static Color statusCodeColor(int? statusCode) {
+    if (statusCode == null || statusCode == -1) return Colors.red;
+    if (statusCode >= 200 && statusCode < 300) return Colors.green;
+    if (statusCode >= 300 && statusCode < 400) return Colors.blue;
+    if (statusCode >= 400 && statusCode < 500) return Colors.orange;
+    if (statusCode >= 500) return Colors.red;
+    return Colors.grey;
+  }
+
+  /// Color for an HTTP method (GET/POST/PUT/PATCH/DELETE).
+  static Color methodColor(String method) {
+    switch (method.toUpperCase()) {
+      case 'GET':
+        return Colors.blue;
+      case 'POST':
+        return Colors.green;
+      case 'PUT':
+        return Colors.orange;
+      case 'PATCH':
+        return Colors.purple;
+      case 'DELETE':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
   /// Formats bytes into human-readable size (KB, MB, GB)
   static String formatBytes(int bytes) {
     if (bytes < 1024) {

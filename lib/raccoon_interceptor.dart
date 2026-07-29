@@ -1,17 +1,21 @@
 import 'dart:convert';
+import 'dart:developer';
 
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:raccoon/model/raccoon_form_data_field.dart';
 import 'package:raccoon/model/raccoon_http_call.dart';
 import 'package:raccoon/model/raccoon_http_error.dart';
 import 'package:raccoon/model/raccoon_http_form_data_file.dart';
 import 'package:raccoon/model/raccoon_http_request.dart';
 import 'package:raccoon/model/raccoon_http_response.dart';
-import 'package:raccoon/raccoon_adapter.dart';
+import 'package:raccoon/raccoon_service.dart';
 import 'package:raccoon/utils/raccoon_parser.dart';
 
-class RaccoonInterceptor extends InterceptorsWrapper with RaccoonAdapter {
+/// Dio interceptor that captures requests, responses and errors into the
+/// shared [RaccoonService] for inspection.
+class RaccoonInterceptor extends InterceptorsWrapper {
+  final RaccoonService service = RaccoonService();
+
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     try {
@@ -50,7 +54,6 @@ class RaccoonInterceptor extends InterceptorsWrapper with RaccoonAdapter {
                 RaccoonHttpFormDataFile(
                   entry.value.filename,
                   entry.value.contentType.toString(),
-                  entry.value.length,
                 ),
               );
             }
@@ -69,7 +72,6 @@ class RaccoonInterceptor extends InterceptorsWrapper with RaccoonAdapter {
         time: DateTime.now(),
         headers: RaccoonParser.parseHeaders(headers: options.headers),
         contentType: options.contentType.toString(),
-        queryParameters: uri.queryParameters,
         curl: RaccoonParser.generateCurlCommand(options),
       );
 
@@ -77,15 +79,13 @@ class RaccoonInterceptor extends InterceptorsWrapper with RaccoonAdapter {
         method: options.method,
         endpoint: path,
         server: uri.host,
-        client: "Dio",
         uri: options.uri.toString(),
-        secure: uri.scheme == 'https',
         request: request,
       );
 
       service.addCall(seed);
     } catch (e) {
-      debugPrint("ERROR ON REQUEST $e");
+      log("Raccoon: error on request: $e");
     }
 
     return handler.next(options);
@@ -119,7 +119,7 @@ class RaccoonInterceptor extends InterceptorsWrapper with RaccoonAdapter {
 
       service.addResponse(httpResponse, response.requestOptions.hashCode);
     } catch (e) {
-      debugPrint("ERROR ON RESPONSE $e");
+      log("Raccoon: error on response: $e");
     }
 
     return handler.next(response);
@@ -127,42 +127,47 @@ class RaccoonInterceptor extends InterceptorsWrapper with RaccoonAdapter {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
-    var httpError = RaccoonHttpError(error: err.toString());
+    try {
+      final httpError = RaccoonHttpError(
+        error: err.toString(),
+        stackTrace: err.stackTrace,
+      );
+      service.addError(httpError, err.requestOptions.hashCode);
 
-    if (err is Error) {
-      final basicError = err as Error;
-      httpError = httpError.copyWith(stackTrace: basicError.stackTrace);
-    }
+      var httpResponse = RaccoonHttpResponse(time: DateTime.now());
 
-    service.addError(httpError, err.requestOptions.hashCode);
-
-    var httpResponse = RaccoonHttpResponse(time: DateTime.now());
-
-    if (err.response == null) {
-      httpResponse = httpResponse.copyWith(status: -1);
-      service.addResponse(httpResponse, err.requestOptions.hashCode);
-    } else {
-      httpResponse = httpResponse.copyWith(status: err.response?.statusCode);
-
-      if (err.response!.data == null) {
-        httpResponse = httpResponse.copyWith(body: "", size: 0);
+      if (err.response == null) {
+        httpResponse = httpResponse.copyWith(status: -1);
+        service.addResponse(httpResponse, err.requestOptions.hashCode);
       } else {
-        httpResponse = httpResponse.copyWith(
-          body: err.response?.data,
-          size: utf8.encode(err.response!.data.toString()).length,
+        httpResponse = httpResponse.copyWith(status: err.response?.statusCode);
+
+        if (err.response!.data == null) {
+          httpResponse = httpResponse.copyWith(body: "", size: 0);
+        } else {
+          httpResponse = httpResponse.copyWith(
+            body: err.response?.data,
+            size: utf8.encode(err.response!.data.toString()).length,
+          );
+        }
+
+        final headers = <String, String>{};
+
+        err.response!.headers.forEach((header, values) {
+          headers[header] = values.toString();
+        });
+
+        httpResponse = httpResponse.copyWith(headers: headers);
+
+        service.addResponse(
+          httpResponse,
+          err.response!.requestOptions.hashCode,
         );
       }
-
-      final headers = <String, String>{};
-
-      err.response!.headers.forEach((header, values) {
-        headers[header] = values.toString();
-      });
-
-      httpResponse = httpResponse.copyWith(headers: headers);
-
-      service.addResponse(httpResponse, err.response!.requestOptions.hashCode);
+    } catch (e) {
+      log("Raccoon: error on error: $e");
     }
+
     return handler.next(err);
   }
 }

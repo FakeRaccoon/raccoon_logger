@@ -7,6 +7,8 @@ import 'package:raccoon/raccoon_service.dart';
 import 'package:raccoon/utils/raccoon_format_helpers.dart';
 import 'package:raccoon/view/raccoon_detail_view.dart';
 
+/// Statistics screen: overview metrics, status/method distributions,
+/// per-endpoint timings, slow/failed lists, and Markdown export.
 class RaccoonStatsView extends StatelessWidget {
   const RaccoonStatsView({super.key, required this.service});
 
@@ -68,7 +70,9 @@ class RaccoonStatsView extends StatelessWidget {
                     context,
                     stats.statusCodeDistribution,
                     stats.totalCalls,
-                    _statusCodeColor,
+                    (code) => RaccoonFormatHelpers.statusCodeColor(
+                      int.tryParse(code),
+                    ),
                     labelWidth: 52,
                   ),
                 ),
@@ -80,7 +84,7 @@ class RaccoonStatsView extends StatelessWidget {
                     context,
                     stats.methodDistribution,
                     stats.totalCalls,
-                    _methodColor,
+                    RaccoonFormatHelpers.methodColor,
                     labelWidth: 68,
                   ),
                 ),
@@ -863,32 +867,6 @@ class RaccoonStatsView extends StatelessWidget {
     return Colors.red;
   }
 
-  Color _statusCodeColor(String statusCode) {
-    final code = int.tryParse(statusCode) ?? 0;
-    if (code >= 200 && code < 300) return Colors.green;
-    if (code >= 300 && code < 400) return Colors.blue;
-    if (code >= 400 && code < 500) return Colors.orange;
-    if (code >= 500) return Colors.red;
-    return Colors.grey;
-  }
-
-  Color _methodColor(String method) {
-    switch (method.toUpperCase()) {
-      case 'GET':
-        return Colors.blue;
-      case 'POST':
-        return Colors.green;
-      case 'PUT':
-        return Colors.orange;
-      case 'PATCH':
-        return Colors.purple;
-      case 'DELETE':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
-  }
-
   // ── Stats calculation ─────────────────────────────────────────────────────
 
   _Stats _calculateStats(List<RaccoonHttpCall> calls) {
@@ -1059,28 +1037,11 @@ class _MethodText extends StatelessWidget {
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,
-          color: _methodColor(method),
+          color: RaccoonFormatHelpers.methodColor(method),
           letterSpacing: 0.3,
         ),
       ),
     );
-  }
-
-  Color _methodColor(String method) {
-    switch (method.toUpperCase()) {
-      case 'GET':
-        return Colors.blue;
-      case 'POST':
-        return Colors.green;
-      case 'PUT':
-        return Colors.orange;
-      case 'PATCH':
-        return Colors.purple;
-      case 'DELETE':
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
   }
 }
 

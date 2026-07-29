@@ -1,14 +1,9 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
-import 'package:flutter/material.dart';
 
 /// Body parser helper used to parsing body data.
 class RaccoonParser {
-  static const String _jsonContentTypeSmall = 'content-type';
-  static const String _jsonContentTypeBig = 'Content-Type';
-  static const JsonEncoder _encoder = JsonEncoder.withIndent('  ');
-
   static String generateCurlCommand(RequestOptions options) {
     final curl = StringBuffer();
     curl.write("curl -X ${options.method}");
@@ -43,34 +38,6 @@ class RaccoonParser {
     curl.write(' "${options.uri}"');
 
     return curl.toString();
-  }
-
-  /// Formats body based on [contentType]. If body is null it will return
-  /// [_emptyBody]. Otherwise if body type is json - it will try to format it.
-  ///
-  static String formatJson(Map<String, dynamic> jsonString) {
-    try {
-      return _encoder.convert(jsonString); // Pretty-print with indentation
-    } catch (e) {
-      return ""; // Return the original string if it's not valid JSON
-    }
-  }
-
-  /// Get content type from [headers]. It looks for json and if it can't find
-  /// it, it will return unknown content type.
-  static String? getContentType({
-    required BuildContext context,
-    Map<String, String>? headers,
-  }) {
-    if (headers != null) {
-      if (headers.containsKey(_jsonContentTypeSmall)) {
-        return headers[_jsonContentTypeSmall];
-      }
-      if (headers.containsKey(_jsonContentTypeBig)) {
-        return headers[_jsonContentTypeBig];
-      }
-    }
-    return "Unknown content type";
   }
 
   /// Parses headers from [dynamic] to [Map<String,String>], if possible.

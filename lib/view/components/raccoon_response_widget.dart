@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:raccoon/model/raccoon_http_call.dart';
 import 'package:raccoon/utils/raccoon_formatter.dart';
 
+/// Response tab: renders a call's response body with a Formatted/Raw toggle
+/// and JSON/XML/image/text handling.
 class RaccoonResponseWidget extends StatefulWidget {
   const RaccoonResponseWidget({super.key, required this.call});
 

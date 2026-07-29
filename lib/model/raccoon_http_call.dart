@@ -3,6 +3,8 @@ import 'package:raccoon/model/raccoon_http_error.dart';
 import 'package:raccoon/model/raccoon_http_request.dart';
 import 'package:raccoon/model/raccoon_http_response.dart';
 
+/// A single captured HTTP call: timing, endpoint, and its request, response
+/// and error (any of which may be null until that stage completes).
 class RaccoonHttpCall with EquatableMixin {
   RaccoonHttpCall({
     required this.id,
@@ -10,9 +12,6 @@ class RaccoonHttpCall with EquatableMixin {
     this.response,
     this.error,
     DateTime? createdTime,
-    this.client = '',
-    this.loading = true,
-    this.secure = false,
     this.method = '',
     this.endpoint = '',
     this.server = '',
@@ -22,9 +21,6 @@ class RaccoonHttpCall with EquatableMixin {
 
   final int id;
   final DateTime createdTime;
-  final String client;
-  final bool loading;
-  final bool secure;
   final String method;
   final String endpoint;
   final String server;
@@ -38,9 +34,6 @@ class RaccoonHttpCall with EquatableMixin {
   RaccoonHttpCall copyWith({
     int? id,
     DateTime? createdTime,
-    String? client,
-    bool? loading,
-    bool? secure,
     String? method,
     String? endpoint,
     String? server,
@@ -53,9 +46,6 @@ class RaccoonHttpCall with EquatableMixin {
     return RaccoonHttpCall(
       id: id ?? this.id,
       createdTime: createdTime ?? this.createdTime,
-      client: client ?? this.client,
-      loading: loading ?? this.loading,
-      secure: secure ?? this.secure,
       method: method ?? this.method,
       endpoint: endpoint ?? this.endpoint,
       server: server ?? this.server,
@@ -71,9 +61,6 @@ class RaccoonHttpCall with EquatableMixin {
   List<Object?> get props => [
     id,
     createdTime,
-    client,
-    loading,
-    secure,
     method,
     endpoint,
     server,

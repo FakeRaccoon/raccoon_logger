@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:raccoon/raccoon_service.dart';
 
+/// Draggable, edge-snapping floating button that opens the inspector. Hides
+/// itself while the inspector is open.
 class RaccoonOverlayWidget extends StatefulWidget {
   const RaccoonOverlayWidget({super.key});
 
@@ -13,18 +15,6 @@ class RaccoonOverlayWidgetState extends State<RaccoonOverlayWidget>
   Offset position = const Offset(100, 100); // Initial position
   late Size screenSize;
   late double bottomSafeArea;
-
-  void _snapToSideOnInit() {
-    final double middleX = screenSize.width / 2;
-    final double finalX = position.dx < middleX ? 0 : screenSize.width - 40;
-
-    setState(() {
-      position = Offset(
-        finalX,
-        position.dy.clamp(0, screenSize.height - 40 - bottomSafeArea),
-      );
-    });
-  }
 
   void _snapToSide() {
     final double middleX = screenSize.width / 2;
@@ -42,7 +32,7 @@ class RaccoonOverlayWidgetState extends State<RaccoonOverlayWidget>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _snapToSideOnInit();
+      _snapToSide();
     });
   }
 

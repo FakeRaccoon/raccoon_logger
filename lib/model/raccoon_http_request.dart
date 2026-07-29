@@ -1,4 +1,3 @@
-import 'dart:io' show Cookie;
 import 'package:equatable/equatable.dart';
 import 'package:raccoon/model/raccoon_form_data_field.dart';
 import 'package:raccoon/model/raccoon_http_form_data_file.dart';
@@ -12,8 +11,6 @@ class RaccoonHttpRequest with EquatableMixin {
     this.body = '',
     this.contentType = '',
     this.curl = '',
-    this.cookies = const [],
-    this.queryParameters = const <String, dynamic>{},
     this.formDataFiles,
     this.formDataFields,
   }) : time = time ?? DateTime.now();
@@ -24,8 +21,6 @@ class RaccoonHttpRequest with EquatableMixin {
   final dynamic body;
   final String? contentType;
   final String curl;
-  final List<Cookie> cookies;
-  final Map<String, dynamic> queryParameters;
   final List<RaccoonHttpFormDataFile>? formDataFiles;
   final List<RaccoonFormDataField>? formDataFields;
 
@@ -36,8 +31,6 @@ class RaccoonHttpRequest with EquatableMixin {
     dynamic body,
     String? contentType,
     String? curl,
-    List<Cookie>? cookies,
-    Map<String, dynamic>? queryParameters,
     List<RaccoonHttpFormDataFile>? formDataFiles,
     List<RaccoonFormDataField>? formDataFields,
   }) {
@@ -48,8 +41,6 @@ class RaccoonHttpRequest with EquatableMixin {
       body: body ?? this.body,
       contentType: contentType ?? this.contentType,
       curl: curl ?? this.curl,
-      cookies: cookies ?? this.cookies,
-      queryParameters: queryParameters ?? this.queryParameters,
       formDataFiles: formDataFiles ?? this.formDataFiles,
       formDataFields: formDataFields ?? this.formDataFields,
     );
@@ -62,8 +53,6 @@ class RaccoonHttpRequest with EquatableMixin {
     headers,
     body,
     contentType,
-    cookies,
-    queryParameters,
     formDataFiles,
     formDataFields,
   ];

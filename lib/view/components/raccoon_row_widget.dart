@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+/// A small selectable "title: body" label pair used throughout the inspector.
 class RaccoonRowWidget extends StatelessWidget {
   const RaccoonRowWidget({super.key, required this.title, required this.body});
 
