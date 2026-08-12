@@ -5,17 +5,28 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:raccoon/model/raccoon_http_call.dart';
 
+import 'raccoon_interceptor.dart';
 import 'raccoon_service.dart';
+import 'view/components/raccoon_draggable_overlay_widget.dart';
 
 // Barrel: one import (`package:raccoon/raccoon.dart`) exposes the full public
 // API instead of deep file paths.
+export 'package:raccoon/raccoon_http_client.dart' show RaccoonHttpClient;
 export 'package:raccoon/raccoon_interceptor.dart' show RaccoonInterceptor;
 export 'package:raccoon/raccoon_service.dart' show RaccoonService;
+export 'package:raccoon/raccoon_theme.dart' show RaccoonThemePreset;
 export 'package:raccoon/model/raccoon_http_call.dart' show RaccoonHttpCall;
 export 'package:raccoon/view/components/raccoon_draggable_overlay_widget.dart'
     show RaccoonOverlayWidget;
 
 /// Public facade around [RaccoonService] for quick access inside apps.
+///
+/// Minimal setup:
+/// ```dart
+/// final dio = Dio()..useRaccoon();
+///
+/// MaterialApp(builder: Raccoon.overlay, home: const HomePage());
+/// ```
 class Raccoon {
   Raccoon._internal();
 
@@ -24,6 +35,18 @@ class Raccoon {
   factory Raccoon() => _instance;
 
   final RaccoonService _service = RaccoonService();
+
+  /// Ready-made [MaterialApp.builder] that stacks the draggable inspector
+  /// button over the app.
+  ///
+  /// ```dart
+  /// MaterialApp(builder: Raccoon.overlay, home: const HomePage());
+  /// ```
+  ///
+  /// Apps that already use `builder` can nest [RaccoonOverlayWidget] in their
+  /// own `Stack` instead.
+  static Widget overlay(BuildContext context, Widget? child) =>
+      Stack(children: [?child, const RaccoonOverlayWidget()]);
 
   /// Snapshot of recorded calls. Use [listenable] to be notified when it changes.
   UnmodifiableListView<RaccoonHttpCall> get calls => _service.calls;
@@ -94,26 +117,20 @@ class Raccoon {
 
   /// Set a Dio instance for replaying requests.
   ///
-  /// This enables the request replay functionality in the detail view,
-  /// allowing you to resend captured requests.
-  ///
-  /// Example:
-  /// ```dart
-  /// final dio = Dio()
-  ///   ..interceptors.add(RaccoonInterceptor());
-  ///
-  /// // Enable request replay
-  /// Raccoon().setDioInstance(dio);
-  /// ```
+  /// Prefer `dio.useRaccoon()`, which attaches the interceptor and registers
+  /// the instance in one call. Use this only when the capturing client and the
+  /// replay client differ.
   void setDioInstance(Dio dio) {
     _service.setDioInstance(dio);
   }
 
-  /// Set Discord webhook configuration for slow call notifications.
+  /// Set Discord webhook configuration for slow and failed call notifications.
   ///
   /// [url] is the Discord webhook URL.
-  /// [threshold] is the duration in milliseconds above which a call is
-  /// considered slow.
+  /// [threshold] is the duration in milliseconds at or above which a call is
+  /// considered slow; `0` disables slow alerts.
+  /// [slowAlerts] and [errorAlerts] set the initial state of the two switches
+  /// in the inspector's Discord settings sheet.
   ///
   /// Example:
   /// ```dart
@@ -122,7 +139,31 @@ class Raccoon {
   ///   threshold: 500,
   /// );
   /// ```
-  void setDiscordConfig({required String url, required int threshold}) {
-    _service.setDiscordConfig(url: url, threshold: threshold);
+  void setDiscordConfig({
+    required String url,
+    required int threshold,
+    bool slowAlerts = true,
+    bool errorAlerts = true,
+  }) {
+    _service.setDiscordConfig(
+      url: url,
+      threshold: threshold,
+      slowAlerts: slowAlerts,
+      errorAlerts: errorAlerts,
+    );
+  }
+}
+
+/// One-call wiring for a [Dio] client.
+extension RaccoonDio on Dio {
+  /// Attaches [RaccoonInterceptor] and registers this client for request
+  /// replay.
+  ///
+  /// ```dart
+  /// final dio = Dio()..useRaccoon();
+  /// ```
+  void useRaccoon() {
+    interceptors.add(RaccoonInterceptor());
+    RaccoonService().setDioInstance(this);
   }
 }
