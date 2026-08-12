@@ -34,18 +34,33 @@ void main() {
 
   group('colors', () {
     test('statusCodeColor', () {
-      expect(RaccoonFormatHelpers.statusCodeColor(null), Colors.red);
-      expect(RaccoonFormatHelpers.statusCodeColor(-1), Colors.red);
-      expect(RaccoonFormatHelpers.statusCodeColor(204), Colors.green);
-      expect(RaccoonFormatHelpers.statusCodeColor(302), Colors.blue);
-      expect(RaccoonFormatHelpers.statusCodeColor(404), Colors.orange);
-      expect(RaccoonFormatHelpers.statusCodeColor(500), Colors.red);
+      expect(RaccoonFormatHelpers.statusCodeColor(null), Colors.red.shade700);
+      expect(RaccoonFormatHelpers.statusCodeColor(-1), Colors.red.shade700);
+      expect(RaccoonFormatHelpers.statusCodeColor(204), Colors.green.shade700);
+      expect(RaccoonFormatHelpers.statusCodeColor(302), Colors.blue.shade700);
+      expect(RaccoonFormatHelpers.statusCodeColor(404), Colors.orange.shade700);
+      expect(RaccoonFormatHelpers.statusCodeColor(500), Colors.red.shade700);
     });
 
     test('methodColor is case-insensitive', () {
-      expect(RaccoonFormatHelpers.methodColor('get'), Colors.blue);
-      expect(RaccoonFormatHelpers.methodColor('POST'), Colors.green);
-      expect(RaccoonFormatHelpers.methodColor('WEIRD'), Colors.grey);
+      expect(RaccoonFormatHelpers.methodColor('get'), Colors.blue.shade700);
+      expect(RaccoonFormatHelpers.methodColor('POST'), Colors.green.shade700);
+      expect(RaccoonFormatHelpers.methodColor('WEIRD'), Colors.grey.shade700);
+    });
+
+    test('dark themes get the lighter shade of the same hue', () {
+      expect(
+        RaccoonFormatHelpers.statusCodeColor(200, brightness: Brightness.dark),
+        Colors.green.shade300,
+      );
+      expect(
+        RaccoonFormatHelpers.methodColor('DELETE', brightness: Brightness.dark),
+        Colors.red.shade300,
+      );
+      expect(
+        RaccoonFormatHelpers.tone(Colors.blue, Brightness.dark),
+        isNot(RaccoonFormatHelpers.tone(Colors.blue, Brightness.light)),
+      );
     });
   });
 }
