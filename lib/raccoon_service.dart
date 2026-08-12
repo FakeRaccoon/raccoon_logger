@@ -128,6 +128,14 @@ class RaccoonService extends ChangeNotifier {
   /// Duration in milliseconds at or above which a call counts as slow.
   int get slowCallThreshold => _slowCallThreshold;
 
+  /// Fallback used when no Discord threshold is configured, so "slow" still
+  /// means something on the statistics screen.
+  static const int defaultSlowThreshold = 500;
+
+  /// The threshold the inspector actually reports against.
+  int get effectiveSlowThreshold =>
+      _slowCallThreshold > 0 ? _slowCallThreshold : defaultSlowThreshold;
+
   /// Whether slow calls trigger a Discord notification.
   bool get discordSlowAlerts => _discordSlowAlerts;
 

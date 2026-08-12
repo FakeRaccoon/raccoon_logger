@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:raccoon/raccoon_service.dart';
 import 'package:raccoon/raccoon_theme.dart';
+import 'package:raccoon/utils/raccoon_file_export.dart';
 import 'package:raccoon/utils/raccoon_format_helpers.dart';
 import 'package:raccoon/utils/raccoon_stats.dart';
 import 'package:raccoon/view/raccoon_detail_view.dart';
@@ -10,9 +11,6 @@ import 'package:raccoon/view/raccoon_detail_view.dart';
 /// that cost the most time, and the calls that need attention.
 class RaccoonStatsView extends StatelessWidget {
   const RaccoonStatsView({super.key, required this.service});
-
-  /// Fallback for when no Discord threshold is configured.
-  static const int defaultSlowThreshold = 500;
 
   final RaccoonService service;
 
@@ -90,9 +88,7 @@ class RaccoonStatsView extends StatelessWidget {
   /// everywhere; falls back to 500 ms when alerts are off.
   RaccoonStats _stats() => RaccoonStats.from(
     service.calls,
-    slowThreshold: service.slowCallThreshold > 0
-        ? service.slowCallThreshold
-        : defaultSlowThreshold,
+    slowThreshold: service.effectiveSlowThreshold,
   );
 
   static Widget _section(
@@ -153,6 +149,26 @@ class RaccoonStatsView extends StatelessWidget {
                     style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                   const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.save_alt, size: 20),
+                    tooltip: 'Save file',
+                    onPressed: () async {
+                      final path = await saveExportFile('raccoon_stats.md', md);
+                      if (!context.mounted) return;
+                      if (path == null) {
+                        await Clipboard.setData(ClipboardData(text: md));
+                        if (!context.mounted) return;
+                        showRaccoonSnackBar(
+                          context,
+                          'Saving files is not supported here — '
+                          'copied instead',
+                          duration: const Duration(seconds: 4),
+                        );
+                        return;
+                      }
+                      showRaccoonSnackBar(context, 'Saved to $path');
+                    },
+                  ),
                   IconButton(
                     icon: const Icon(Icons.copy, size: 20),
                     tooltip: 'Copy',

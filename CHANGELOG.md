@@ -117,8 +117,17 @@ are additive — existing wiring keeps working.
   used to be painted entirely as a tag, so `<title>403 Forbidden</title>`
   rendered the message in tag color; tags and content are now highlighted
   separately.
-* **HAR export** — the inspector can copy all captured calls as a HAR 1.2
-  document for import into browser devtools or Charles/Proxyman.
+* **HAR export** — all captured calls as a HAR 1.2 document, for import into
+  browser devtools or Charles/Proxyman.
+* **Exports can be saved to a file, not just copied.** **⋮ → Save all as HAR**
+  and the Statistics screen's save button write into the app's temporary
+  directory and show the path; the web build, which has no file system the
+  package can reach, falls back to the clipboard. `Raccoon()` also exposes
+  `exportHar()` and `exportStatsMarkdown()` so an app can hand either report to
+  its own share sheet — Raccoon stays free of native plugins.
+* **Image previews.** Bytes are kept for image responses under the capture cap,
+  and the Response tab renders them instead of the old "not yet supported"
+  placeholder; oversized or undecodable images say which of the two happened.
 
 ### Fixes
 
@@ -134,10 +143,6 @@ are additive — existing wiring keeps working.
   * Replaying a multipart upload now throws instead of silently sending the
     form without its files — only their names and content types are captured,
     never the bytes.
-* **Feature**: Image responses are previewed. Bytes are kept for image
-  responses under the capture cap, and the Response tab renders them instead of
-  the old "not yet supported" placeholder; oversized or undecodable images say
-  which of the two happened.
 * **Improvement**: Response rendering no longer rebuilds the whole body on
   every frame. The formatted text and its syntax spans are cached until the
   body, format toggle or theme changes — with the find bar, that used to mean

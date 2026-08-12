@@ -4,6 +4,7 @@ import 'package:raccoon/model/raccoon_http_call.dart';
 import 'package:raccoon/raccoon_service.dart';
 import 'package:raccoon/raccoon_theme.dart';
 import 'package:raccoon/utils/raccoon_format_helpers.dart';
+import 'package:raccoon/utils/raccoon_file_export.dart';
 import 'package:raccoon/utils/raccoon_har.dart';
 import 'package:raccoon/view/raccoon_detail_view.dart';
 import 'package:raccoon/view/raccoon_stats_view.dart';
@@ -73,7 +74,9 @@ class _RaccoonViewState extends State<RaccoonView> {
     });
   }
 
-  void _copyAllAsHar() {
+  /// Exports every completed call as HAR, to a file where the platform allows
+  /// one and to the clipboard otherwise (or as well, when [copy] is set).
+  Future<void> _exportHar({required bool copy}) async {
     final completed = widget.service.calls
         .where((c) => c.response != null)
         .length;
@@ -81,10 +84,71 @@ class _RaccoonViewState extends State<RaccoonView> {
       showRaccoonSnackBar(context, 'No calls to export');
       return;
     }
-    Clipboard.setData(
-      ClipboardData(text: RaccoonHar.generate(widget.service.calls)),
+
+    final har = RaccoonHar.generate(widget.service.calls);
+    if (copy) {
+      await Clipboard.setData(ClipboardData(text: har));
+      if (!mounted) return;
+      showRaccoonSnackBar(context, 'Copied $completed call(s) as HAR');
+      return;
+    }
+
+    final path = await saveExportFile('raccoon.har', har);
+    if (!mounted) return;
+    if (path == null) {
+      // No file system to write to (web), so fall back rather than fail.
+      await Clipboard.setData(ClipboardData(text: har));
+      if (!mounted) return;
+      showRaccoonSnackBar(
+        context,
+        'Saving files is not supported here — copied $completed call(s) instead',
+        duration: const Duration(seconds: 4),
+      );
+      return;
+    }
+    _showSavedSheet(path, '$completed call(s) saved as HAR');
+  }
+
+  /// Shows where the file landed, with the path ready to paste into a terminal
+  /// or a file picker — the package cannot open a share sheet without pulling
+  /// in a native plugin.
+  void _showSavedSheet(String path, String message) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                message,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 12),
+              SelectableText(
+                path,
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+              ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton.tonalIcon(
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: path));
+                    showRaccoonSnackBar(context, 'Path copied');
+                  },
+                  icon: const Icon(Icons.copy, size: 18),
+                  label: const Text('Copy path'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
-    showRaccoonSnackBar(context, 'Copied $completed call(s) as HAR');
   }
 
   void _showDiscordSettings() {
@@ -236,7 +300,9 @@ class _RaccoonViewState extends State<RaccoonView> {
                   ),
                 );
               } else if (value == 'har') {
-                _copyAllAsHar();
+                _exportHar(copy: false);
+              } else if (value == 'har-copy') {
+                _exportHar(copy: true);
               } else if (value == 'discord') {
                 _showDiscordSettings();
               } else if (value == 'theme') {
@@ -260,7 +326,17 @@ class _RaccoonViewState extends State<RaccoonView> {
                 value: 'har',
                 child: Row(
                   children: [
-                    Icon(Icons.download),
+                    Icon(Icons.save_alt),
+                    SizedBox(width: 8),
+                    Text('Save all as HAR'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'har-copy',
+                child: Row(
+                  children: [
+                    Icon(Icons.copy_all),
                     SizedBox(width: 8),
                     Text('Copy all as HAR'),
                   ],

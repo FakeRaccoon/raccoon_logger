@@ -7,6 +7,8 @@ import 'package:raccoon/model/raccoon_http_call.dart';
 
 import 'raccoon_interceptor.dart';
 import 'raccoon_service.dart';
+import 'utils/raccoon_har.dart';
+import 'utils/raccoon_stats.dart';
 import 'view/components/raccoon_draggable_overlay_widget.dart';
 
 // Barrel: one import (`package:raccoon/raccoon.dart`) exposes the full public
@@ -82,6 +84,25 @@ class Raccoon {
 
   /// Listenable that mirrors updates from the underlying [RaccoonService].
   Listenable get listenable => _service;
+
+  /// Every completed call as a HAR 1.2 document, for import into browser
+  /// devtools, Charles or Proxyman.
+  ///
+  /// The inspector can copy this to the clipboard or drop it in a temporary
+  /// file, but it cannot open a share sheet without a native plugin. Call this
+  /// from your app to hand the report to whatever you already use:
+  ///
+  /// ```dart
+  /// await Share.shareXFiles([XFile.fromData(utf8.encode(Raccoon().exportHar()))]);
+  /// ```
+  String exportHar() => RaccoonHar.generate(_service.calls);
+
+  /// The statistics report as Markdown, using the same slow-call threshold as
+  /// the inspector's Statistics screen.
+  String exportStatsMarkdown() => RaccoonStats.from(
+    _service.calls,
+    slowThreshold: _service.effectiveSlowThreshold,
+  ).toMarkdown();
 
   /// Set a navigator provider for opening the inspector without context.
   ///

@@ -115,6 +115,18 @@ Raccoon().setNavigatorProvider(() => navigatorKey.currentState!);
 
 **Separate client for replay?** `dio.useRaccoon()` registers the capturing client. Override with `Raccoon().setDioInstance(otherDio)`.
 
+### Exporting
+
+**⋮ → Save all as HAR** writes `raccoon.har` next to the app's temporary files and shows the path; **Copy all as HAR** puts the same document on the clipboard. The Statistics screen's download button does both for its Markdown report. On the web there is no file system the package can reach, so saving falls back to copying.
+
+Raccoon deliberately has no share-sheet integration: that needs a native plugin, and this package stays pure Dart. Take the report and hand it to whatever your app already uses:
+
+```dart
+await Share.shareXFiles([
+  XFile.fromData(utf8.encode(Raccoon().exportHar()), name: 'raccoon.har'),
+]);
+```
+
 ### Theme
 
 **⋮ → Theme** picks the color theme for the inspector UI: **Use App Theme** (default) inherits the host application's theme, and the presets — Basic, Clear Dark, Grass, Homebrew, Man Page, Novel, Ocean, Pro, Red Sands — override it, so you can read the inspector in light while the app under test runs dark.
@@ -158,6 +170,8 @@ A call that is both slow and failed posts once, as an error. Every embed carries
 - `Raccoon().setNavigatorProvider(() => navigatorKey.currentState!)` – optional; only when auto-discovery fails
 - `Raccoon().setDioInstance(dio)` – optional; only when the replay client differs from the capturing one
 - `Raccoon().setDiscordConfig(url: url, threshold: threshold)` – enables Discord notifications for slow and failed calls
+- `Raccoon().exportHar()` – every completed call as a HAR 1.2 document
+- `Raccoon().exportStatsMarkdown()` – the statistics report as Markdown
 - `RaccoonService().themePreset` – color theme for the inspector UI (`RaccoonThemePreset.app` follows the host app)
 - `Raccoon().calls` – read-only list of captured HTTP calls
 - `Raccoon().isInspectorOpened` – listen for inspector visibility changes
