@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:raccoon/model/raccoon_http_call.dart';
@@ -147,4 +150,72 @@ void main() {
       expect(shown, contains('Wisokyburgh'));
     });
   });
+
+  group('large and binary bodies', () {
+    Future<void> pump(
+      WidgetTester tester,
+      Object? body,
+      Map<String, String> headers,
+    ) => tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: RaccoonResponseWidget(
+            call: RaccoonHttpCall(
+              id: 1,
+              response: RaccoonHttpResponse(
+                status: 200,
+                body: body,
+                headers: headers,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    testWidgets('a body past the highlight cap renders as one plain span', (
+      tester,
+    ) async {
+      final big = jsonEncode({
+        for (var i = 0; i < 4000; i++) 'key$i': 'value$i',
+      });
+      expect(big.length, greaterThan(64 * 1024));
+
+      await pump(tester, big, const {'content-type': 'application/json'});
+
+      final span = tester
+          .widget<SelectableText>(find.byType(SelectableText))
+          .textSpan!;
+      // Highlighting would have produced a span per token; the whole body is
+      // still rendered, just uncoloured.
+      expect(span.children, hasLength(1));
+      expect(
+        span.children!.single.toPlainText().length,
+        greaterThan(RaccoonResponseWidget.maxHighlightChars),
+      );
+    });
+
+    testWidgets('captured image bytes are rendered', (tester) async {
+      await pump(tester, _transparentPng, const {'content-type': 'image/png'});
+      await tester.pump();
+
+      expect(find.byType(Image), findsOneWidget);
+      expect(find.byType(TextField), findsNothing); // no find bar for images
+    });
+
+    testWidgets('an image too large to capture explains itself', (
+      tester,
+    ) async {
+      await pump(tester, '<body not captured: 4.0 MB>', const {
+        'content-type': 'image/png',
+      });
+
+      expect(find.textContaining('too large to capture'), findsOneWidget);
+    });
+  });
 }
+
+/// Smallest valid PNG: a 1×1 transparent pixel.
+final Uint8List _transparentPng = base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+);

@@ -9,6 +9,11 @@ import 'package:raccoon/utils/raccoon_formatter.dart';
 class RaccoonResponseWidget extends StatefulWidget {
   const RaccoonResponseWidget({super.key, required this.call});
 
+  /// Above this, the body renders as plain monospace text. Syntax highlighting
+  /// a body this large costs more per frame than the colour is worth.
+  // ponytail: fixed ceiling; make it configurable only if someone asks.
+  static const int maxHighlightChars = 64 * 1024;
+
   final RaccoonHttpCall call;
 
   @override
@@ -17,6 +22,9 @@ class RaccoonResponseWidget extends StatefulWidget {
 
 class _RaccoonResponseWidgetState extends State<RaccoonResponseWidget> {
   bool _showFormatted = true;
+
+  Object? _cacheKey;
+  (String, List<TextSpan>)? _cachedBody;
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   String _query = '';
@@ -179,7 +187,7 @@ class _RaccoonResponseWidgetState extends State<RaccoonResponseWidget> {
           child: contentType == 'image'
               ? SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
-                  child: _buildImageContent(),
+                  child: _buildImageContent(body),
                 )
               : LayoutBuilder(
                   builder: (context, constraints) {
@@ -257,16 +265,40 @@ class _RaccoonResponseWidgetState extends State<RaccoonResponseWidget> {
 
   /// The body as plain text plus its syntax-highlighted spans. The two always
   /// describe the same characters, so match offsets map onto both.
+  ///
+  /// Cached: this runs on every rebuild, and with the find bar that means
+  /// every keystroke, while nothing it depends on has changed.
   (String, List<TextSpan>) _resolveBody(String contentType, dynamic body) {
     final brightness = Theme.of(context).brightness;
+    final key = (body, contentType, _showFormatted, brightness);
+    if (key == _cacheKey && _cachedBody != null) {
+      return _cachedBody!;
+    }
+    final resolved = _buildResolvedBody(contentType, body, brightness);
+    _cacheKey = key;
+    _cachedBody = resolved;
+    return resolved;
+  }
+
+  (String, List<TextSpan>) _buildResolvedBody(
+    String contentType,
+    dynamic body,
+    Brightness brightness,
+  ) {
     try {
       if (contentType == 'json' && _showFormatted) {
         final text = RaccoonFormatter.formatJson(body);
-        return (text, RaccoonFormatter.jsonSpans(text, brightness));
+        return (
+          text,
+          _spansFor(text, () => RaccoonFormatter.jsonSpans(text, brightness)),
+        );
       }
       if ((contentType == 'xml' || contentType == 'html') && _showFormatted) {
         final text = RaccoonFormatter.formatXml(body.toString());
-        return (text, RaccoonFormatter.xmlSpans(text, brightness));
+        return (
+          text,
+          _spansFor(text, () => RaccoonFormatter.xmlSpans(text, brightness)),
+        );
       }
     } catch (e) {
       // Fall through to the unhighlighted text below.
@@ -274,6 +306,14 @@ class _RaccoonResponseWidgetState extends State<RaccoonResponseWidget> {
     final text = body.toString();
     return (text, [TextSpan(text: text)]);
   }
+
+  /// Highlights [text], unless it is large enough that tokenising it would
+  /// cost more than the colour is worth — a megabyte of JSON is hundreds of
+  /// thousands of spans, rebuilt on every frame that touches this tab.
+  List<TextSpan> _spansFor(String text, List<TextSpan> Function() highlight) =>
+      text.length > RaccoonResponseWidget.maxHighlightChars
+      ? [TextSpan(text: text)]
+      : highlight();
 
   /// Paints the find-in-page highlights over [baseSpans].
   Widget _buildBody(List<TextSpan> baseSpans) {
@@ -291,22 +331,39 @@ class _RaccoonResponseWidgetState extends State<RaccoonResponseWidget> {
     return SelectableText.rich(span);
   }
 
-  Widget _buildImageContent() {
+  /// Renders the image when its bytes were captured — they are for responses
+  /// under the capture cap. Anything else (a body that arrived decoded as
+  /// text, or one too large to keep) falls back to a note.
+  Widget _buildImageContent(dynamic body) {
+    if (body is List<int> && body.isNotEmpty) {
+      return Center(
+        child: Image.memory(
+          body is Uint8List ? body : Uint8List.fromList(body),
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) =>
+              _imageNote('This image could not be decoded'),
+        ),
+      );
+    }
+    return _imageNote(
+      body is String && body.startsWith('<body not captured')
+          ? 'Image too large to capture — see the Headers tab for its size'
+          : 'Image bytes were not captured for this response',
+    );
+  }
+
+  Widget _imageNote(String message) {
     final muted = Theme.of(context).colorScheme.onSurfaceVariant;
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.image, size: 64, color: muted),
+          Icon(Icons.image_outlined, size: 64, color: muted),
           const SizedBox(height: 16),
           Text(
-            'Image preview not yet supported',
+            message,
+            textAlign: TextAlign.center,
             style: TextStyle(color: muted),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Check the Headers tab for image metadata',
-            style: TextStyle(color: muted, fontSize: 12),
           ),
         ],
       ),
