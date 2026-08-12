@@ -13,9 +13,13 @@ class RaccoonErrorWidget extends StatelessWidget {
     if (call.error == null) {
       return const Center(child: Text("There is no error"));
     }
-    return Padding(
+    // Scrollable: a DioException with a stack trace is far taller than the tab.
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
-      child: SelectableText("${call.error?.error}"),
+      child: SizedBox(
+        width: double.infinity,
+        child: SelectableText("${call.error?.error}"),
+      ),
     );
   }
 }

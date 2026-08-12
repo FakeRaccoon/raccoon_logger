@@ -56,11 +56,16 @@ class RaccoonHeadersWidget extends StatelessWidget {
                     ],
                   ),
                 ),
-                _section("Request Headers", child: _headerRows(requestHeaders)),
-                _section(
-                  "Response Headers",
-                  child: _headerRows(responseHeaders),
-                ),
+                if (requestHeaders.isNotEmpty)
+                  _section(
+                    "Request Headers",
+                    child: _headerRows(requestHeaders),
+                  ),
+                if (responseHeaders.isNotEmpty)
+                  _section(
+                    "Response Headers",
+                    child: _headerRows(responseHeaders),
+                  ),
                 if (_shouldShowRequestBody())
                   _section(
                     "Request Body",
@@ -120,7 +125,11 @@ class RaccoonHeadersWidget extends StatelessWidget {
       collapsedShape: const Border(),
       childrenPadding: const EdgeInsets.only(bottom: 8),
       expandedCrossAxisAlignment: CrossAxisAlignment.start,
-      children: [child],
+      // ExpansionTile centres its children by default, which parks the content
+      // in the middle of a wide window. Take the full width and let the rows
+      // align themselves.
+      expandedAlignment: Alignment.centerLeft,
+      children: [SizedBox(width: double.infinity, child: child)],
     );
   }
 
