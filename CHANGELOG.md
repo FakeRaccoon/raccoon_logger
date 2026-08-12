@@ -122,6 +122,18 @@ are additive — existing wiring keeps working.
 
 ### Fixes
 
+* **Fix**: Request replay no longer sends a request that differs from the one
+  it captured.
+  * The query string was sent twice — the captured URI already carries it, and
+    it was passed again as `queryParameters`, so `?page=2` replayed as
+    `?page=2&page=2`.
+  * `content-length`, `host`, `connection`, `transfer-encoding` and
+    `content-encoding` are no longer replayed: they describe the original
+    transmission, and a stale length makes the server reject the request or
+    read a truncated body.
+  * Replaying a multipart upload now throws instead of silently sending the
+    form without its files — only their names and content types are captured,
+    never the bytes.
 * **Fix**: Error stack traces are now captured. The previous `err is Error`
   check was always false for `DioException`; the interceptor now uses
   `err.stackTrace` directly.

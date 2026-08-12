@@ -436,18 +436,21 @@ class RaccoonService extends ChangeNotifier {
 
     final request = call.request!;
 
-    // Prepare request options
+    if (request.formDataFiles?.isNotEmpty ?? false) {
+      // Only the filename and content type of an upload are captured, never
+      // the bytes, so a "replay" would silently send the form without its
+      // files. Refuse instead of sending something that isn't the request.
+      throw StateError(
+        'Cannot replay a multipart upload: file contents are not captured.',
+      );
+    }
+
     final options = Options(
       method: call.method,
-      headers: request.headers,
+      headers: replayHeaders(request.headers),
       contentType: request.contentType,
     );
 
-    // Parse query parameters from URI
-    final uri = Uri.parse(call.uri);
-    final queryParameters = uri.queryParameters;
-
-    // Prepare request data
     dynamic data = request.body;
     if (request.body == "Form Data" && request.formDataFields != null) {
       final formData = FormData();
@@ -457,12 +460,29 @@ class RaccoonService extends ChangeNotifier {
       data = formData;
     }
 
-    // Execute the request
-    return _dioInstance!.request(
-      call.uri,
-      data: data,
-      queryParameters: queryParameters.isNotEmpty ? queryParameters : null,
-      options: options,
-    );
+    // The captured URI already carries the query string; passing
+    // queryParameters as well would append a second copy of every parameter.
+    return _dioInstance!.request(call.uri, data: data, options: options);
+  }
+
+  /// Drops the captured headers that describe the *original* transmission
+  /// rather than the request itself.
+  ///
+  /// `content-length` is the big one: the replayed body is re-serialized and
+  /// rarely lands on the same byte count, and a stale length makes the server
+  /// reject the request or read a truncated body.
+  @visibleForTesting
+  static Map<String, String> replayHeaders(Map<String, String> headers) {
+    const dropped = {
+      'content-length',
+      'host',
+      'connection',
+      'transfer-encoding',
+      'content-encoding',
+    };
+    return {
+      for (final entry in headers.entries)
+        if (!dropped.contains(entry.key.toLowerCase())) entry.key: entry.value,
+    };
   }
 }
