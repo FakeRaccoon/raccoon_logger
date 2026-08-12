@@ -1,6 +1,6 @@
 name: raccoon
-description: "In-app HTTP inspector for Flutter/Dio: log requests, responses and errors, inspect them via a floating overlay, replay calls, export cURL/Markdown, and alert Discord on slow calls."
-version: 0.5.0
+description: "In-app HTTP inspector for Flutter (Dio and package:http): log requests, responses and errors, inspect them via a floating overlay, replay calls, export cURL/HAR/Markdown, and alert Discord on slow or failed calls."
+version: 0.6.0
 # TODO: set these to your real repo before publishing (pub.dev scoring).
 # homepage: https://github.com/<you>/raccoon
 # repository: https://github.com/<you>/raccoon

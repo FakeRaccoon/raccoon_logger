@@ -1,4 +1,110 @@
-## Unreleased
+## 0.6.0
+
+### Breaking changes
+
+* **Removed unused public model fields** that were never surfaced in the UI:
+  `RaccoonHttpCall.{client, loading, secure}`,
+  `RaccoonHttpRequest.{cookies, queryParameters}`,
+  `RaccoonHttpFormDataFile.length`.
+  `RaccoonHttpRequest.cookies` was the source of a `dart:io` import that broke
+  web builds. Read query parameters from `RaccoonHttpCall.uri` instead; drop
+  references to the other fields — none of them were populated with anything the
+  inspector displayed.
+* **`RaccoonHttpFormDataFile` positional argument removed** — the constructor is
+  now `RaccoonHttpFormDataFile(fileName, contentType)`; the trailing `length`
+  argument no longer exists.
+
+* **Discord notification behaviour changed** (signatures are unchanged, so this
+  is source-compatible but will alter what lands in your channel):
+  failed calls now notify by default — pass `errorAlerts: false` to
+  `setDiscordConfig` to keep the 0.5.0 slow-only behaviour — and a `threshold`
+  of `0` now disables slow alerts instead of alerting on every call.
+
+Nothing else changed shape: `Raccoon()`, `RaccoonInterceptor`,
+`RaccoonOverlayWidget`, `setNavigatorProvider`, `setDioInstance` and
+`setDiscordConfig` all keep their 0.5.0 signatures. The new setup helpers below
+are additive — existing wiring keeps working.
+
+### Improvements
+
+* **`package:http` support.** `RaccoonHttpClient` is a `BaseClient` wrapper that
+  captures requests, responses and errors into the same inspector as the Dio
+  interceptor — including multipart fields/files and cURL export:
+
+  ```dart
+  final client = RaccoonHttpClient();          // or RaccoonHttpClient(myClient)
+
+  await client.get(Uri.parse('https://example.com/todos'));
+  ```
+
+  Both clients can be used side by side. Response bodies are buffered so the
+  inspector can display them, so streamed downloads are read into memory in
+  full. Request replay still runs through Dio — `http`-only apps need
+  `Raccoon().setDioInstance(Dio())` for the replay button. Adds a dependency on
+  `http: ^1.2.0`.
+* **Two-line setup.** `dio.useRaccoon()` attaches the interceptor and registers
+  the client for request replay in one call, and `Raccoon.overlay` is a
+  drop-in `MaterialApp.builder` that renders the draggable button — no
+  navigator key and no hand-written `Stack` required:
+
+  ```dart
+  final dio = Dio()..useRaccoon();
+
+  MaterialApp(builder: Raccoon.overlay, home: const HomePage());
+  ```
+
+  `setNavigatorProvider` is now documented as a fallback for the rare cases
+  where navigator auto-discovery can't find a mounted `NavigatorState`.
+* **Discord alerts for failed calls, toggleable in-app.** The webhook now fires
+  for errors (`DioException`, timeouts, and 4xx/5xx responses) as well as slow
+  calls, with a red embed carrying the error message. Each kind has its own
+  switch under **⋮ → Discord alerts** in the inspector, and initial state can be
+  set from code:
+
+  ```dart
+  Raccoon().setDiscordConfig(
+    url: '...',
+    threshold: 1000,
+    slowAlerts: true,
+    errorAlerts: true,
+  );
+  ```
+
+  A call that is both slow and failed posts once, as an error. A `threshold` of
+  `0` now means "never alert on slow calls" instead of "alert on everything".
+  Long error and cURL values are truncated to stay under Discord's 1024-char
+  embed field limit.
+* **Find-in-page search for responses.** The Response tab has a search field
+  that highlights every match in the body, with a `2/7` counter and
+  previous/next buttons that scroll each hit into view and wrap around at the
+  ends — the behaviour of a mobile browser's find bar. Highlights compose with
+  the JSON/XML syntax colors, and a match is highlighted correctly even when it
+  straddles two syntax tokens. Works on formatted JSON/XML and on raw or
+  plain-text bodies.
+* **Empty header sections are hidden** instead of expanding to nothing, and the
+  Headers tab no longer centres its content in a wide window.
+* **Theme picker.** **⋮ → Theme** opens a list of color themes for the
+  inspector UI — Basic, Clear Dark, Grass, Homebrew, Man Page, Novel, Ocean,
+  Pro, Red Sands — each previewed by a swatch. The default, **Use App Theme**,
+  keeps the previous behaviour of inheriting the host application's theme, so
+  the inspector can be read in light while the app under test runs dark. The
+  choice can also be set from code with
+  `RaccoonService().themePreset = RaccoonThemePreset.homebrew` and lasts for the
+  session (not persisted across restarts).
+* **Dark mode fixes across the inspector.** Status, method and duration colors
+  now pick the shade that stays legible on the current theme (the light 300
+  shade on dark surfaces, the dark 700 shade on light ones) instead of a fixed
+  Material 500. The response toolbar, replay dialog and dividers use theme
+  surfaces rather than hardcoded greys, so they no longer render as bright
+  strips on a dark background.
+* **XML/HTML highlighting no longer swallows text.** Any line starting with `<`
+  used to be painted entirely as a tag, so `<title>403 Forbidden</title>`
+  rendered the message in tag color; tags and content are now highlighted
+  separately.
+* **HAR export** — the inspector can copy all captured calls as a HAR 1.2
+  document for import into browser devtools or Charles/Proxyman.
+
+### Fixes
 
 * **Fix**: Error stack traces are now captured. The previous `err is Error`
   check was always false for `DioException`; the interceptor now uses
@@ -19,10 +125,6 @@
 * **Chore**: Dropped the `expandable` dependency (Headers sections now use the
   SDK's `ExpansionTile`); bumped `flutter_lints` to `^6.0.0`; removed dead code
   and consolidated duplicated status/method color helpers.
-* **Breaking**: Removed unused public model fields never surfaced in the UI —
-  `RaccoonHttpCall.{client, loading, secure}`,
-  `RaccoonHttpRequest.{cookies, queryParameters}`,
-  `RaccoonHttpFormDataFile.length`.
 
 ## 0.5.0
 
