@@ -9,6 +9,7 @@ import 'package:raccoon/model/raccoon_http_form_data_file.dart';
 import 'package:raccoon/model/raccoon_http_request.dart';
 import 'package:raccoon/model/raccoon_http_response.dart';
 import 'package:raccoon/raccoon_service.dart';
+import 'package:raccoon/utils/raccoon_body.dart';
 import 'package:raccoon/utils/raccoon_parser.dart';
 
 /// [http.Client] wrapper that captures requests, responses and errors into the
@@ -45,7 +46,11 @@ class RaccoonHttpClient extends http.BaseClient {
         RaccoonHttpResponse(
           status: streamed.statusCode,
           size: bytes.length,
-          body: _decodeBody(bytes),
+          // The byte count is already known, so nothing re-measures it — and
+          // an oversized body is never decoded in the first place.
+          body: bytes.length > RaccoonBody.maxBytes
+              ? RaccoonBody.notCaptured(bytes.length)
+              : _decodeBody(bytes),
           headers: streamed.headers,
         ),
         id,

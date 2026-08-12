@@ -134,6 +134,13 @@ are additive — existing wiring keeps working.
   * Replaying a multipart upload now throws instead of silently sending the
     form without its files — only their names and content types are captured,
     never the bytes.
+* **Improvement**: Captured bodies are bounded. Anything over 256 KB is stored
+  truncated, and a body whose `content-length` is already over the cap is never
+  materialised at all — with the 1000-call cap, a handful of large downloads
+  used to be enough to push an app over. Sizing is cheaper too: a body used to
+  be stringified and then encoded to bytes purely to count them, throwing both
+  away, and `toString()` on a decoded JSON map produced `{a: 1}`, which is not
+  valid JSON.
 * **Fix**: Error stack traces are now captured. The previous `err is Error`
   check was always false for `DioException`; the interceptor now uses
   `err.stackTrace` directly.

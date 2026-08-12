@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:developer';
 
 import 'package:dio/dio.dart';
@@ -9,7 +8,13 @@ import 'package:raccoon/model/raccoon_http_form_data_file.dart';
 import 'package:raccoon/model/raccoon_http_request.dart';
 import 'package:raccoon/model/raccoon_http_response.dart';
 import 'package:raccoon/raccoon_service.dart';
+import 'package:raccoon/utils/raccoon_body.dart';
 import 'package:raccoon/utils/raccoon_parser.dart';
+
+/// Reads `content-length` when the server sent one, so a large body can be
+/// sized without being materialised.
+int? _declaredSize(Headers headers) =>
+    int.tryParse(headers.value(Headers.contentLengthHeader) ?? '');
 
 /// Dio interceptor that captures requests, responses and errors into the
 /// shared [RaccoonService] for inspection.
@@ -61,10 +66,8 @@ class RaccoonInterceptor extends InterceptorsWrapper {
             request = request.copyWith(formDataFiles: files);
           }
         } else {
-          request = request.copyWith(
-            size: utf8.encode(data.toString()).length,
-            body: data,
-          );
+          final captured = RaccoonBody.capture(data);
+          request = request.copyWith(size: captured.size, body: captured.body);
         }
       }
 
@@ -96,20 +99,20 @@ class RaccoonInterceptor extends InterceptorsWrapper {
     try {
       var httpResponse = RaccoonHttpResponse();
 
-      if (response.data == null) {
-        httpResponse = httpResponse.copyWith(body: "", size: 0);
-      } else {
-        httpResponse = httpResponse.copyWith(
-          body: response.data,
-          size: utf8.encode(response.data.toString()).length,
-        );
-      }
-
       final headers = <String, String>{};
 
       response.headers.forEach((header, values) {
         headers[header] = values.toString();
       });
+
+      final captured = RaccoonBody.capture(
+        response.data,
+        declaredSize: _declaredSize(response.headers),
+      );
+      httpResponse = httpResponse.copyWith(
+        body: captured.body,
+        size: captured.size,
+      );
 
       httpResponse = httpResponse.copyWith(
         status: response.statusCode,
@@ -142,14 +145,14 @@ class RaccoonInterceptor extends InterceptorsWrapper {
       } else {
         httpResponse = httpResponse.copyWith(status: err.response?.statusCode);
 
-        if (err.response!.data == null) {
-          httpResponse = httpResponse.copyWith(body: "", size: 0);
-        } else {
-          httpResponse = httpResponse.copyWith(
-            body: err.response?.data,
-            size: utf8.encode(err.response!.data.toString()).length,
-          );
-        }
+        final captured = RaccoonBody.capture(
+          err.response!.data,
+          declaredSize: _declaredSize(err.response!.headers),
+        );
+        httpResponse = httpResponse.copyWith(
+          body: captured.body,
+          size: captured.size,
+        );
 
         final headers = <String, String>{};
 
