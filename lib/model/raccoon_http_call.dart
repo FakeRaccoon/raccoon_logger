@@ -5,7 +5,7 @@ import 'package:raccoon/model/raccoon_http_response.dart';
 
 /// A single captured HTTP call: timing, endpoint, and its request, response
 /// and error (any of which may be null until that stage completes).
-class RaccoonHttpCall with EquatableMixin {
+class RaccoonHttpCall with Equatable {
   RaccoonHttpCall({
     required this.id,
     this.request,

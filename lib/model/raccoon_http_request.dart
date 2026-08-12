@@ -3,7 +3,7 @@ import 'package:raccoon/model/raccoon_form_data_field.dart';
 import 'package:raccoon/model/raccoon_http_form_data_file.dart';
 
 /// Definition of http request data holder.
-class RaccoonHttpRequest with EquatableMixin {
+class RaccoonHttpRequest with Equatable {
   RaccoonHttpRequest({
     this.size = 0,
     DateTime? time,
