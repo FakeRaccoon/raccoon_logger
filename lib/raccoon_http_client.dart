@@ -47,9 +47,12 @@ class RaccoonHttpClient extends http.BaseClient {
           status: streamed.statusCode,
           size: bytes.length,
           // The byte count is already known, so nothing re-measures it — and
-          // an oversized body is never decoded in the first place.
+          // an oversized body is never decoded in the first place. Images keep
+          // their bytes so the inspector can render them.
           body: bytes.length > RaccoonBody.maxBytes
               ? RaccoonBody.notCaptured(bytes.length)
+              : _isImage(streamed.headers)
+              ? bytes
               : _decodeBody(bytes),
           headers: streamed.headers,
         ),
@@ -162,8 +165,11 @@ class RaccoonHttpClient extends http.BaseClient {
     }
   }
 
+  static bool _isImage(Map<String, String> headers) =>
+      (headers['content-type'] ?? '').toLowerCase().startsWith('image/');
+
   /// Decodes a response body as UTF-8, falling back to a size marker for
-  /// binary payloads (images, archives) that would only render as noise.
+  /// binary payloads (archives, fonts) that would only render as noise.
   static String _decodeBody(List<int> bytes) {
     if (bytes.isEmpty) {
       return '';

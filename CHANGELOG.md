@@ -134,6 +134,16 @@ are additive — existing wiring keeps working.
   * Replaying a multipart upload now throws instead of silently sending the
     form without its files — only their names and content types are captured,
     never the bytes.
+* **Feature**: Image responses are previewed. Bytes are kept for image
+  responses under the capture cap, and the Response tab renders them instead of
+  the old "not yet supported" placeholder; oversized or undecodable images say
+  which of the two happened.
+* **Improvement**: Response rendering no longer rebuilds the whole body on
+  every frame. The formatted text and its syntax spans are cached until the
+  body, format toggle or theme changes — with the find bar, that used to mean
+  re-tokenising the entire body on every keystroke — and bodies over 64 KB
+  render as plain monospace text, since tokenising a megabyte of JSON into
+  hundreds of thousands of spans costs more than the colour is worth.
 * **Improvement**: Captured bodies are bounded. Anything over 256 KB is stored
   truncated, and a body whose `content-length` is already over the cap is never
   materialised at all — with the 1000-call cap, a handful of large downloads

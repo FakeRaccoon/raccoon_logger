@@ -37,6 +37,13 @@ class RaccoonBody {
       return (body: size > maxBytes ? _truncate(body, size) : body, size: size);
     }
 
+    // Raw bytes (an image, a download): already their own size, and encoding
+    // them as JSON would turn a payload into a list of integers.
+    if (body is List<int>) {
+      final size = body.length;
+      return (body: size > maxBytes ? notCaptured(size) : body, size: size);
+    }
+
     // Encode once and reuse the result for both the size and the stored copy.
     // toString() is not an option: it renders a Map as `{a: 1}`, which is not
     // JSON and breaks the formatter.

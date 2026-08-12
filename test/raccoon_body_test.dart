@@ -45,6 +45,24 @@ void main() {
     expect(captured.size, 3);
   });
 
+  test('raw bytes are kept as bytes, sized by their length', () {
+    final bytes = List<int>.filled(64, 0x89);
+    final captured = RaccoonBody.capture(bytes);
+
+    expect(captured.body, same(bytes));
+    expect(captured.size, 64);
+  });
+
+  test('oversized bytes are dropped rather than encoded', () {
+    final captured = RaccoonBody.capture(
+      List<int>.filled(RaccoonBody.maxBytes + 1, 0),
+    );
+
+    expect(captured.body, isA<String>());
+    expect(captured.body, contains('not captured'));
+    expect(captured.size, RaccoonBody.maxBytes + 1);
+  });
+
   test('null bodies capture as empty', () {
     expect(RaccoonBody.capture(null), (body: '', size: 0));
   });

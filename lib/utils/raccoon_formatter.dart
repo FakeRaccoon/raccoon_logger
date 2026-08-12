@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:raccoon/utils/raccoon_format_helpers.dart';
@@ -32,6 +33,10 @@ class RaccoonFormatter {
       if (trimmed.startsWith('<?xml') || trimmed.startsWith('<')) {
         return 'xml';
       }
+    } else if (body is Uint8List) {
+      // Captured bytes — an image or another binary payload. Checked before
+      // the List branch below, which would otherwise call it a JSON array.
+      return 'image';
     } else if (body is Map || body is List) {
       return 'json';
     }
