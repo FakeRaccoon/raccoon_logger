@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:raccoon/model/raccoon_http_call.dart';
+import 'package:raccoon/raccoon_theme.dart';
 import 'package:raccoon/utils/raccoon_format_helpers.dart';
 
 /// Header row for a call detail: status, method and endpoint, plus copy-URL
@@ -31,7 +32,10 @@ class RaccoonSummaryHeader extends StatelessWidget {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: RaccoonFormatHelpers.statusCodeColor(statusCode),
+              color: RaccoonFormatHelpers.statusCodeColor(
+                statusCode,
+                brightness: Theme.of(context).brightness,
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -58,12 +62,7 @@ class RaccoonSummaryHeader extends StatelessWidget {
         IconButton(
           onPressed: () {
             Clipboard.setData(ClipboardData(text: call.uri));
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('URL copied to clipboard'),
-                duration: Duration(seconds: 2),
-              ),
-            );
+            showRaccoonSnackBar(context, 'URL copied to clipboard');
           },
           icon: const Icon(Icons.copy, size: 20),
           tooltip: 'Copy URL',

@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:raccoon/model/raccoon_http_call.dart';
 import 'package:raccoon/raccoon_service.dart';
+import 'package:raccoon/raccoon_theme.dart';
+import 'package:raccoon/utils/raccoon_format_helpers.dart';
 import 'package:raccoon/view/components/raccoon_error_widget.dart';
 import 'package:raccoon/view/components/raccoon_headers_widget.dart';
 import 'package:raccoon/view/components/raccoon_response_widget.dart';
@@ -26,13 +28,11 @@ class _RaccoonDetailViewState extends State<RaccoonDetailView> {
 
     if (service.dioInstance == null) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Replay not available. Configure Dio instance using Raccoon().setDioInstance(dio)',
-          ),
-          duration: Duration(seconds: 3),
-        ),
+      showRaccoonSnackBar(
+        context,
+        'Replay not available. Configure Dio instance using '
+        'Raccoon().setDioInstance(dio)',
+        duration: const Duration(seconds: 3),
       );
       return;
     }
@@ -61,11 +61,10 @@ class _RaccoonDetailViewState extends State<RaccoonDetailView> {
       if (e is DioException) {
         _showReplayResult(e.response, e);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Replay failed: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
+        showRaccoonSnackBar(
+          context,
+          'Replay failed: ${e.toString()}',
+          isError: true,
         );
       }
     }
@@ -79,7 +78,10 @@ class _RaccoonDetailViewState extends State<RaccoonDetailView> {
           children: [
             Icon(
               error != null ? Icons.error : Icons.check_circle,
-              color: error != null ? Colors.red : Colors.green,
+              color: RaccoonFormatHelpers.tone(
+                error != null ? Colors.red : Colors.green,
+                Theme.of(context).brightness,
+              ),
             ),
             const SizedBox(width: 8),
             Text(error != null ? 'Replay Failed' : 'Replay Successful'),
@@ -109,7 +111,9 @@ class _RaccoonDetailViewState extends State<RaccoonDetailView> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.grey[200],
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: SelectableText(
@@ -134,9 +138,7 @@ class _RaccoonDetailViewState extends State<RaccoonDetailView> {
                 Clipboard.setData(
                   ClipboardData(text: response.data?.toString() ?? ''),
                 );
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Response copied to clipboard')),
-                );
+                showRaccoonSnackBar(context, 'Response copied to clipboard');
               },
               child: const Text('Copy Response'),
             ),
@@ -163,15 +165,33 @@ class _RaccoonDetailViewState extends State<RaccoonDetailView> {
 
   @override
   Widget build(BuildContext context) {
+    return RaccoonThemeScope(child: Builder(builder: _buildScaffold));
+  }
+
+  Widget _buildScaffold(BuildContext context) {
+    // Colour the tabs against the app bar they sit in, rather than leaving it to
+    // the host app's theme. A Material 2 host defaults TabBar labels to
+    // `primaryTextTheme` — the colour meant for text ON `primaryColor` — so an
+    // app with a dark primary and a white app bar (a common pairing) renders
+    // these labels white on white, leaving a bar with nothing but its indicator.
+    final theme = Theme.of(context);
+    final onAppBar =
+        theme.appBarTheme.foregroundColor ??
+        theme.appBarTheme.titleTextStyle?.color ??
+        theme.colorScheme.onSurface;
+
     return DefaultTabController(
       length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: const Text("HTTP Call Detail"),
-          bottom: const TabBar(
+          bottom: TabBar(
             dividerHeight: 0,
-            labelStyle: TextStyle(fontWeight: FontWeight.bold),
-            tabs: [
+            labelColor: onAppBar,
+            unselectedLabelColor: onAppBar.withValues(alpha: 0.6),
+            indicatorColor: onAppBar,
+            labelStyle: const TextStyle(fontWeight: FontWeight.bold),
+            tabs: const [
               Tab(text: "Headers"),
               Tab(text: "Response"),
               Tab(text: "Error"),

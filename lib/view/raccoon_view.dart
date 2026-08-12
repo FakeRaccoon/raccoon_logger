@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:raccoon/model/raccoon_http_call.dart';
 import 'package:raccoon/raccoon_service.dart';
+import 'package:raccoon/raccoon_theme.dart';
+import 'package:raccoon/utils/raccoon_format_helpers.dart';
 import 'package:raccoon/utils/raccoon_har.dart';
 import 'package:raccoon/view/raccoon_detail_view.dart';
 import 'package:raccoon/view/raccoon_stats_view.dart';
@@ -76,17 +78,108 @@ class _RaccoonViewState extends State<RaccoonView> {
         .where((c) => c.response != null)
         .length;
     if (completed == 0) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('No calls to export')));
+      showRaccoonSnackBar(context, 'No calls to export');
       return;
     }
     Clipboard.setData(
       ClipboardData(text: RaccoonHar.generate(widget.service.calls)),
     );
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Copied $completed call(s) as HAR')));
+    showRaccoonSnackBar(context, 'Copied $completed call(s) as HAR');
+  }
+
+  void _showDiscordSettings() {
+    final service = widget.service;
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: AnimatedBuilder(
+          animation: service,
+          builder: (context, _) => Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const ListTile(
+                leading: Icon(Icons.notifications_outlined),
+                title: Text('Discord alerts'),
+              ),
+              if (!service.isDiscordConfigured)
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Text(
+                    'No webhook URL configured. Call '
+                    'Raccoon().setDiscordConfig(url: ..., threshold: ...) '
+                    'to enable notifications.',
+                  ),
+                ),
+              SwitchListTile(
+                value: service.discordSlowAlerts,
+                onChanged: service.isDiscordConfigured
+                    ? (value) => service.discordSlowAlerts = value
+                    : null,
+                title: const Text('Slow calls'),
+                subtitle: Text(
+                  service.slowCallThreshold > 0
+                      ? 'Calls at or above ${service.slowCallThreshold} ms'
+                      : 'Threshold is 0 ms — slow alerts never fire',
+                ),
+              ),
+              SwitchListTile(
+                value: service.discordErrorAlerts,
+                onChanged: service.isDiscordConfigured
+                    ? (value) => service.discordErrorAlerts = value
+                    : null,
+                title: const Text('Failed calls'),
+                subtitle: const Text('Errors, timeouts, and 4xx/5xx responses'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showThemePicker() {
+    final service = widget.service;
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: AnimatedBuilder(
+          animation: service,
+          builder: (context, _) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const ListTile(
+                leading: Icon(Icons.palette_outlined),
+                title: Text('Inspector theme'),
+              ),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (final preset in RaccoonThemePreset.values)
+                      ListTile(
+                        leading: _ThemeSwatch(preset: preset),
+                        title: Text(preset.label),
+                        subtitle: preset == RaccoonThemePreset.app
+                            ? const Text('Follow the app you are debugging')
+                            : null,
+                        selected: preset == service.themePreset,
+                        trailing: preset == service.themePreset
+                            ? const Icon(Icons.check)
+                            : null,
+                        onTap: () => service.themePreset = preset,
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   bool _matchesCall(RaccoonHttpCall call) {
@@ -109,6 +202,12 @@ class _RaccoonViewState extends State<RaccoonView> {
 
   @override
   Widget build(BuildContext context) {
+    // Builder, so the scaffold reads the theme the scope installs rather than
+    // the app theme above it.
+    return RaccoonThemeScope(child: Builder(builder: _buildScaffold));
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: _isSearching
@@ -138,6 +237,10 @@ class _RaccoonViewState extends State<RaccoonView> {
                 );
               } else if (value == 'har') {
                 _copyAllAsHar();
+              } else if (value == 'discord') {
+                _showDiscordSettings();
+              } else if (value == 'theme') {
+                _showThemePicker();
               } else if (value == 'clear') {
                 widget.service.clearCalls();
               }
@@ -160,6 +263,26 @@ class _RaccoonViewState extends State<RaccoonView> {
                     Icon(Icons.download),
                     SizedBox(width: 8),
                     Text('Copy all as HAR'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'discord',
+                child: Row(
+                  children: [
+                    Icon(Icons.notifications_outlined),
+                    SizedBox(width: 8),
+                    Text('Discord alerts'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'theme',
+                child: Row(
+                  children: [
+                    Icon(Icons.palette_outlined),
+                    SizedBox(width: 8),
+                    Text('Theme'),
                   ],
                 ),
               ),
@@ -199,11 +322,18 @@ class _RaccoonViewState extends State<RaccoonView> {
             itemCount: calls.length,
             itemBuilder: (context, index) {
               final call = calls[index];
+              final brightness = Theme.of(context).brightness;
+              final statusColor = RaccoonFormatHelpers.statusCodeColor(
+                call.response?.status,
+                brightness: brightness,
+              );
               return ListTile(
                 title: Text(
                   "${call.method} ${call.endpoint}",
                   style: TextStyle(
-                    color: call.error != null ? Colors.red : null,
+                    color: call.error != null
+                        ? RaccoonFormatHelpers.tone(Colors.red, brightness)
+                        : null,
                   ),
                 ),
                 isThreeLine: true,
@@ -262,19 +392,14 @@ class _RaccoonViewState extends State<RaccoonView> {
                     ? const SizedBox(
                         height: 20,
                         width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 5,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            Colors.green,
-                          ),
-                        ),
+                        child: CircularProgressIndicator(strokeWidth: 5),
                       )
                     : Text(
                         "${call.response?.status}",
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: call.error != null ? Colors.red : Colors.green,
+                          color: statusColor,
                         ),
                       ),
                 onTap: call.response?.status == null
@@ -287,10 +412,49 @@ class _RaccoonViewState extends State<RaccoonView> {
               );
             },
             separatorBuilder: (BuildContext context, int index) {
-              return const Divider(color: Colors.grey);
+              return const Divider(height: 1);
             },
           );
         },
+      ),
+    );
+  }
+}
+
+/// Miniature preview of a theme preset: a "terminal window" painted in that
+/// preset's surface, text and accent colors.
+class _ThemeSwatch extends StatelessWidget {
+  const _ThemeSwatch({required this.preset});
+
+  final RaccoonThemePreset preset;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme =
+        preset.themeData?.colorScheme ?? Theme.of(context).colorScheme;
+
+    Widget bar(Color color, double widthFactor) => FractionallySizedBox(
+      alignment: Alignment.centerLeft,
+      widthFactor: widthFactor,
+      child: Container(height: 3, color: color),
+    );
+
+    return Container(
+      width: 46,
+      height: 32,
+      padding: const EdgeInsets.all(5),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          bar(scheme.primary, 1),
+          bar(scheme.onSurface, 0.55),
+          bar(scheme.secondary, 0.8),
+        ],
       ),
     );
   }

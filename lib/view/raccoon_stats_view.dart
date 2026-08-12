@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:raccoon/model/raccoon_http_call.dart';
 import 'package:raccoon/raccoon_service.dart';
+import 'package:raccoon/raccoon_theme.dart';
 import 'package:raccoon/utils/raccoon_format_helpers.dart';
 import 'package:raccoon/view/raccoon_detail_view.dart';
 
@@ -16,6 +17,10 @@ class RaccoonStatsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return RaccoonThemeScope(child: Builder(builder: _buildScaffold));
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final colorScheme = Theme.of(context).colorScheme;
 
@@ -72,6 +77,7 @@ class RaccoonStatsView extends StatelessWidget {
                     stats.totalCalls,
                     (code) => RaccoonFormatHelpers.statusCodeColor(
                       int.tryParse(code),
+                      brightness: Theme.of(context).brightness,
                     ),
                     labelWidth: 52,
                   ),
@@ -84,7 +90,10 @@ class RaccoonStatsView extends StatelessWidget {
                     context,
                     stats.methodDistribution,
                     stats.totalCalls,
-                    RaccoonFormatHelpers.methodColor,
+                    (method) => RaccoonFormatHelpers.methodColor(
+                      method,
+                      brightness: Theme.of(context).brightness,
+                    ),
                     labelWidth: 68,
                   ),
                 ),
@@ -158,7 +167,12 @@ class RaccoonStatsView extends StatelessWidget {
                   context,
                   'Success',
                   stats.successCount.toString(),
-                  valueColor: stats.successCount > 0 ? Colors.green : null,
+                  valueColor: stats.successCount > 0
+                      ? RaccoonFormatHelpers.tone(
+                          Colors.green,
+                          Theme.of(context).brightness,
+                        )
+                      : null,
                 ),
               ),
               divider,
@@ -167,7 +181,12 @@ class RaccoonStatsView extends StatelessWidget {
                   context,
                   'Failed',
                   stats.errorCount.toString(),
-                  valueColor: stats.errorCount > 0 ? Colors.red : null,
+                  valueColor: stats.errorCount > 0
+                      ? RaccoonFormatHelpers.tone(
+                          Colors.red,
+                          Theme.of(context).brightness,
+                        )
+                      : null,
                 ),
               ),
             ],
@@ -193,7 +212,12 @@ class RaccoonStatsView extends StatelessWidget {
                   context,
                   'Slow >500ms',
                   stats.slowCount.toString(),
-                  valueColor: stats.slowCount > 0 ? Colors.orange : null,
+                  valueColor: stats.slowCount > 0
+                      ? RaccoonFormatHelpers.tone(
+                          Colors.orange,
+                          Theme.of(context).brightness,
+                        )
+                      : null,
                 ),
               ),
               divider,
@@ -309,7 +333,10 @@ class RaccoonStatsView extends StatelessWidget {
     return Column(
       children: endpoints.mapIndexed((index, ep) {
         final fraction = maxAvg > 0 ? ep.avgDuration / maxAvg : 0.0;
-        final avgColor = _durationColor(ep.avgDuration);
+        final avgColor = _durationColor(
+          ep.avgDuration,
+          Theme.of(context).brightness,
+        );
 
         return Column(
           children: [
@@ -396,7 +423,10 @@ class RaccoonStatsView extends StatelessWidget {
 
     return Column(
       children: calls.mapIndexed((index, call) {
-        final durationColor = _durationColor(call.duration);
+        final durationColor = _durationColor(
+          call.duration,
+          Theme.of(context).brightness,
+        );
         final fraction = call.duration / maxDuration;
 
         return Column(
@@ -477,10 +507,12 @@ class RaccoonStatsView extends StatelessWidget {
       children: calls.mapIndexed((index, call) {
         final statusCode = call.response?.status;
         final isNetworkError = call.error != null && statusCode == null;
-        final statusColor =
-            (isNetworkError || (statusCode != null && statusCode >= 500))
-            ? Colors.red
-            : Colors.orange;
+        final statusColor = RaccoonFormatHelpers.tone(
+          (isNetworkError || (statusCode != null && statusCode >= 500))
+              ? Colors.red
+              : Colors.orange,
+          Theme.of(context).brightness,
+        );
 
         return Column(
           children: [
@@ -514,7 +546,7 @@ class RaccoonStatsView extends StatelessWidget {
                               call.error?.error?.toString() ?? 'Network error',
                               style: TextStyle(
                                 fontSize: 11,
-                                color: Colors.red.withValues(alpha: 0.7),
+                                color: statusColor.withValues(alpha: 0.7),
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -720,12 +752,7 @@ class RaccoonStatsView extends StatelessWidget {
                     tooltip: 'Copy',
                     onPressed: () {
                       Clipboard.setData(ClipboardData(text: md));
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Copied to clipboard'),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
+                      showRaccoonSnackBar(context, 'Copied to clipboard');
                     },
                   ),
                 ],
@@ -860,11 +887,13 @@ class RaccoonStatsView extends StatelessWidget {
     return status.toString();
   }
 
-  Color _durationColor(int ms) {
-    if (ms < 500) return Colors.green;
-    if (ms < 1000) return Colors.orange;
-    if (ms < 3000) return Colors.deepOrange;
-    return Colors.red;
+  Color _durationColor(int ms, Brightness brightness) {
+    if (ms < 500) return RaccoonFormatHelpers.tone(Colors.green, brightness);
+    if (ms < 1000) return RaccoonFormatHelpers.tone(Colors.orange, brightness);
+    if (ms < 3000) {
+      return RaccoonFormatHelpers.tone(Colors.deepOrange, brightness);
+    }
+    return RaccoonFormatHelpers.tone(Colors.red, brightness);
   }
 
   // ── Stats calculation ─────────────────────────────────────────────────────
@@ -1037,7 +1066,10 @@ class _MethodText extends StatelessWidget {
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,
-          color: RaccoonFormatHelpers.methodColor(method),
+          color: RaccoonFormatHelpers.methodColor(
+            method,
+            brightness: Theme.of(context).brightness,
+          ),
           letterSpacing: 0.3,
         ),
       ),
