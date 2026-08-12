@@ -74,6 +74,22 @@ are additive — existing wiring keeps working.
   `0` now means "never alert on slow calls" instead of "alert on everything".
   Long error and cURL values are truncated to stay under Discord's 1024-char
   embed field limit.
+* **Statistics screen rebuilt.** One screen instead of six stacked sections: a
+  headline (calls, failures, transfer) over `p50 · p95 · max`, the status mix
+  as a single stacked bar with the method counts beside it, endpoints ranked by
+  total time with their p95, and one "needs attention" list merging failed and
+  slow calls.
+  * Percentiles replace the average, which hid the tail — fifty fast calls bury
+    the three that took three seconds.
+  * Endpoints rank by total time (count × duration) rather than by average, so
+    a single slow outlier no longer outranks the endpoint the app actually
+    spends its time in.
+  * Failed and slow calls were two lists that printed a slow failure twice;
+    they are now one list tagged by reason.
+  * "Slow" comes from the configured Discord threshold instead of a hardcoded
+    500 ms in six places, falling back to 500 ms when alerts are off.
+  * The aggregation moved to `RaccoonStats`, a plain Dart class with a
+    `toMarkdown()` report, so it is testable without a widget tree.
 * **Find-in-page search for responses.** The Response tab has a search field
   that highlights every match in the body, with a `2/7` counter and
   previous/next buttons that scroll each hit into view and wrap around at the
