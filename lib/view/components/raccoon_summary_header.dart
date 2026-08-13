@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:raccoon/model/raccoon_http_call.dart';
+import 'package:raccoon/raccoon_theme.dart';
+import 'package:raccoon/utils/raccoon_format_helpers.dart';
 
+/// Header row for a call detail: status, method and endpoint, plus copy-URL
+/// and replay actions.
 class RaccoonSummaryHeader extends StatelessWidget {
   const RaccoonSummaryHeader({
     super.key,
@@ -28,7 +32,10 @@ class RaccoonSummaryHeader extends StatelessWidget {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: _getStatusColor(statusCode),
+              color: RaccoonFormatHelpers.statusCodeColor(
+                statusCode,
+                brightness: Theme.of(context).brightness,
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -55,12 +62,7 @@ class RaccoonSummaryHeader extends StatelessWidget {
         IconButton(
           onPressed: () {
             Clipboard.setData(ClipboardData(text: call.uri));
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('URL copied to clipboard'),
-                duration: Duration(seconds: 2),
-              ),
-            );
+            showRaccoonSnackBar(context, 'URL copied to clipboard');
           },
           icon: const Icon(Icons.copy, size: 20),
           tooltip: 'Copy URL',
@@ -82,14 +84,5 @@ class RaccoonSummaryHeader extends StatelessWidget {
           ),
       ],
     );
-  }
-
-  Color _getStatusColor(int? statusCode) {
-    if (statusCode == null || statusCode == -1) return Colors.red;
-    if (statusCode >= 200 && statusCode < 300) return Colors.green;
-    if (statusCode >= 300 && statusCode < 400) return Colors.blue;
-    if (statusCode >= 400 && statusCode < 500) return Colors.orange;
-    if (statusCode >= 500) return Colors.red;
-    return Colors.grey;
   }
 }

@@ -1,0 +1,23 @@
+name: raccoon_example
+description: "Demo app for previewing the raccoon inspector UI."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.1
+
+dependencies:
+  dio: ^5.11.0
+  flutter:
+    sdk: flutter
+  http: ^1.2.0
+  raccoon:
+    path: ../
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

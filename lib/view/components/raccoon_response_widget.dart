@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:raccoon/model/raccoon_http_call.dart';
+import 'package:raccoon/raccoon_theme.dart';
 import 'package:raccoon/utils/raccoon_formatter.dart';
 
+/// Response tab: renders a call's response body with a Formatted/Raw toggle,
+/// find-in-page search, and JSON/XML/image/text handling.
 class RaccoonResponseWidget extends StatefulWidget {
   const RaccoonResponseWidget({super.key, required this.call});
+
+  /// Above this, the body renders as plain monospace text. Syntax highlighting
+  /// a body this large costs more per frame than the colour is worth.
+  // ponytail: fixed ceiling; make it configurable only if someone asks.
+  static const int maxHighlightChars = 64 * 1024;
 
   final RaccoonHttpCall call;
 
@@ -15,6 +23,86 @@ class RaccoonResponseWidget extends StatefulWidget {
 class _RaccoonResponseWidgetState extends State<RaccoonResponseWidget> {
   bool _showFormatted = true;
 
+  Object? _cacheKey;
+  (String, List<TextSpan>)? _cachedBody;
+  final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+  String _query = '';
+  int _activeMatch = 0;
+
+  /// Match offsets and the laid-out span of the last build, kept so the
+  /// next/previous buttons can scroll without rebuilding the body themselves.
+  List<int> _matches = const [];
+  TextSpan? _renderedSpan;
+  double _renderedWidth = 0;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onQueryChanged(String value) {
+    setState(() {
+      _query = value.trim();
+      _activeMatch = 0;
+    });
+    _scrollToActiveMatch();
+  }
+
+  void _stepMatch(int delta) {
+    if (_matches.isEmpty) {
+      return;
+    }
+    setState(() {
+      // Wrap around, like a browser's find bar.
+      _activeMatch = (_activeMatch + delta) % _matches.length;
+      if (_activeMatch < 0) {
+        _activeMatch += _matches.length;
+      }
+    });
+    _scrollToActiveMatch();
+  }
+
+  /// Scrolls the active match into view.
+  ///
+  /// Measures with a [TextPainter] over the same span and width the body is
+  /// rendered at, so the offset is exact even when long lines wrap.
+  void _scrollToActiveMatch() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final span = _renderedSpan;
+      if (span == null ||
+          _matches.isEmpty ||
+          _renderedWidth <= 0 ||
+          !_scrollController.hasClients) {
+        return;
+      }
+
+      final painter = TextPainter(
+        text: span,
+        textDirection: Directionality.of(context),
+        textScaler: MediaQuery.textScalerOf(context),
+      )..layout(maxWidth: _renderedWidth);
+
+      final caret = painter.getOffsetForCaret(
+        TextPosition(offset: _matches[_activeMatch]),
+        Rect.zero,
+      );
+      final position = _scrollController.position;
+      // Park the match a third of the way down rather than at the very top.
+      final target = (caret.dy - position.viewportDimension / 3).clamp(
+        0.0,
+        position.maxScrollExtent,
+      );
+      _scrollController.animateTo(
+        target,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     if (widget.call.response?.body == null) {
@@ -24,6 +112,17 @@ class _RaccoonResponseWidgetState extends State<RaccoonResponseWidget> {
     final body = widget.call.response!.body;
     final headers = widget.call.response!.headers;
     final contentType = RaccoonFormatter.detectContentType(headers, body);
+    final colorScheme = Theme.of(context).colorScheme;
+
+    // Resolve the body and its matches before laying anything out: the find
+    // bar above the body needs the match count from the same build.
+    final (text, baseSpans) = contentType == 'image'
+        ? ('', const <TextSpan>[])
+        : _resolveBody(contentType, body);
+    _matches = RaccoonFormatter.findMatches(text, _query);
+    if (_activeMatch >= _matches.length) {
+      _activeMatch = 0;
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -32,8 +131,10 @@ class _RaccoonResponseWidgetState extends State<RaccoonResponseWidget> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: Colors.grey[100],
-            border: Border(bottom: BorderSide(color: Colors.grey[300]!)),
+            color: colorScheme.surfaceContainerHighest,
+            border: Border(
+              bottom: BorderSide(color: colorScheme.outlineVariant),
+            ),
           ),
           child: Row(
             children: [
@@ -71,12 +172,7 @@ class _RaccoonResponseWidgetState extends State<RaccoonResponseWidget> {
               IconButton(
                 onPressed: () {
                   Clipboard.setData(ClipboardData(text: body.toString()));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Response copied to clipboard'),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
+                  showRaccoonSnackBar(context, 'Response copied to clipboard');
                 },
                 icon: const Icon(Icons.copy),
                 tooltip: 'Copy response',
@@ -86,87 +182,191 @@ class _RaccoonResponseWidgetState extends State<RaccoonResponseWidget> {
             ],
           ),
         ),
+        if (contentType != 'image') _buildSearchBar(colorScheme),
         Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: _buildContent(contentType, body),
-          ),
+          child: contentType == 'image'
+              ? SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: _buildImageContent(body),
+                )
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    _renderedWidth = constraints.maxWidth - 32;
+                    return SingleChildScrollView(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.all(16),
+                      child: _buildBody(baseSpans),
+                    );
+                  },
+                ),
         ),
       ],
     );
   }
 
-  Widget _buildContent(String contentType, dynamic body) {
-    try {
-      if (contentType == 'json') {
-        return _buildJsonContent(body);
-      } else if (contentType == 'xml' || contentType == 'html') {
-        return _buildXmlContent(body);
-      } else if (contentType == 'image') {
-        return _buildImageContent(body);
-      } else {
-        return _buildTextContent(body);
-      }
-    } catch (e) {
-      return SelectableText(
-        body.toString(),
-        style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-      );
-    }
-  }
-
-  Widget _buildJsonContent(dynamic body) {
-    if (_showFormatted) {
-      final formatted = RaccoonFormatter.formatJson(body);
-      return RaccoonFormatter.buildJsonWidget(formatted);
-    } else {
-      final raw = body.toString();
-      return SelectableText(
-        raw,
-        style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-      );
-    }
-  }
-
-  Widget _buildXmlContent(dynamic body) {
-    final bodyStr = body.toString();
-    if (_showFormatted) {
-      final formatted = RaccoonFormatter.formatXml(bodyStr);
-      return RaccoonFormatter.buildXmlWidget(formatted);
-    } else {
-      return SelectableText(
-        bodyStr,
-        style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-      );
-    }
-  }
-
-  Widget _buildImageContent(dynamic body) {
-    return const Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
+  Widget _buildSearchBar(ColorScheme colorScheme) {
+    final hasMatches = _matches.isNotEmpty;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Row(
         children: [
-          Icon(Icons.image, size: 64, color: Colors.grey),
-          SizedBox(height: 16),
-          Text(
-            'Image preview not yet supported',
-            style: TextStyle(color: Colors.grey),
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              onChanged: _onQueryChanged,
+              onSubmitted: (_) => _stepMatch(1),
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: 'Search response',
+                prefixIcon: const Icon(Icons.search, size: 18),
+                prefixIconConstraints: const BoxConstraints(minWidth: 36),
+                suffixIcon: _query.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.close, size: 18),
+                        tooltip: 'Clear search',
+                        onPressed: () {
+                          _searchController.clear();
+                          _onQueryChanged('');
+                        },
+                      ),
+                border: const OutlineInputBorder(),
+              ),
+            ),
           ),
-          SizedBox(height: 8),
-          Text(
-            'Check the Headers tab for image metadata',
-            style: TextStyle(color: Colors.grey, fontSize: 12),
-          ),
+          if (_query.isNotEmpty) ...[
+            const SizedBox(width: 8),
+            Text(
+              hasMatches ? '${_activeMatch + 1}/${_matches.length}' : '0/0',
+              style: TextStyle(
+                color: hasMatches
+                    ? colorScheme.onSurface
+                    : colorScheme.onSurfaceVariant,
+              ),
+            ),
+            IconButton(
+              onPressed: hasMatches ? () => _stepMatch(-1) : null,
+              icon: const Icon(Icons.keyboard_arrow_up),
+              tooltip: 'Previous match',
+              visualDensity: VisualDensity.compact,
+            ),
+            IconButton(
+              onPressed: hasMatches ? () => _stepMatch(1) : null,
+              icon: const Icon(Icons.keyboard_arrow_down),
+              tooltip: 'Next match',
+              visualDensity: VisualDensity.compact,
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildTextContent(dynamic body) {
+  /// The body as plain text plus its syntax-highlighted spans. The two always
+  /// describe the same characters, so match offsets map onto both.
+  ///
+  /// Cached: this runs on every rebuild, and with the find bar that means
+  /// every keystroke, while nothing it depends on has changed.
+  (String, List<TextSpan>) _resolveBody(String contentType, dynamic body) {
+    final brightness = Theme.of(context).brightness;
+    final key = (body, contentType, _showFormatted, brightness);
+    if (key == _cacheKey && _cachedBody != null) {
+      return _cachedBody!;
+    }
+    final resolved = _buildResolvedBody(contentType, body, brightness);
+    _cacheKey = key;
+    _cachedBody = resolved;
+    return resolved;
+  }
+
+  (String, List<TextSpan>) _buildResolvedBody(
+    String contentType,
+    dynamic body,
+    Brightness brightness,
+  ) {
+    try {
+      if (contentType == 'json' && _showFormatted) {
+        final text = RaccoonFormatter.formatJson(body);
+        return (
+          text,
+          _spansFor(text, () => RaccoonFormatter.jsonSpans(text, brightness)),
+        );
+      }
+      if ((contentType == 'xml' || contentType == 'html') && _showFormatted) {
+        final text = RaccoonFormatter.formatXml(body.toString());
+        return (
+          text,
+          _spansFor(text, () => RaccoonFormatter.xmlSpans(text, brightness)),
+        );
+      }
+    } catch (e) {
+      // Fall through to the unhighlighted text below.
+    }
     final text = body.toString();
-    return SelectableText(
-      text,
-      style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+    return (text, [TextSpan(text: text)]);
+  }
+
+  /// Highlights [text], unless it is large enough that tokenising it would
+  /// cost more than the colour is worth — a megabyte of JSON is hundreds of
+  /// thousands of spans, rebuilt on every frame that touches this tab.
+  List<TextSpan> _spansFor(String text, List<TextSpan> Function() highlight) =>
+      text.length > RaccoonResponseWidget.maxHighlightChars
+      ? [TextSpan(text: text)]
+      : highlight();
+
+  /// Paints the find-in-page highlights over [baseSpans].
+  Widget _buildBody(List<TextSpan> baseSpans) {
+    final spans = RaccoonFormatter.highlightMatches(
+      baseSpans,
+      query: _query,
+      activeIndex: _activeMatch,
+      color: Colors.yellow.withValues(alpha: 0.3),
+      activeColor: Colors.orange.withValues(alpha: 0.7),
+    );
+
+    final span = TextSpan(style: RaccoonFormatter.bodyStyle, children: spans);
+    _renderedSpan = span;
+
+    return SelectableText.rich(span);
+  }
+
+  /// Renders the image when its bytes were captured — they are for responses
+  /// under the capture cap. Anything else (a body that arrived decoded as
+  /// text, or one too large to keep) falls back to a note.
+  Widget _buildImageContent(dynamic body) {
+    if (body is List<int> && body.isNotEmpty) {
+      return Center(
+        child: Image.memory(
+          body is Uint8List ? body : Uint8List.fromList(body),
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) =>
+              _imageNote('This image could not be decoded'),
+        ),
+      );
+    }
+    return _imageNote(
+      body is String && body.startsWith('<body not captured')
+          ? 'Image too large to capture — see the Headers tab for its size'
+          : 'Image bytes were not captured for this response',
+    );
+  }
+
+  Widget _imageNote(String message) {
+    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.image_outlined, size: 64, color: muted),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: muted),
+          ),
+        ],
+      ),
     );
   }
 }

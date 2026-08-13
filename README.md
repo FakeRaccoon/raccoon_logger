@@ -4,7 +4,7 @@ Raccoon Logger is a lightweight in-app HTTP inspector for Flutter applications. 
 
 ## Features
 
-- Capture Dio requests and responses (including errors, headers, form data, and cURL exports).
+- Capture Dio and `package:http` requests and responses (including errors, headers, form data, and cURL exports).
 - Headless singleton service (`RaccoonService`) that you can observe or drive manually.
 - Inspector overlay button you can drag, snap, and tap to open the log view.
 - Search field inside the inspector to quickly filter calls by method, endpoint, host, or status.
@@ -35,45 +35,53 @@ dependencies:
 
 Then run `flutter pub get`.
 
+## Preview It
+
+The `example/` app fires sample calls (JSON, HTML, slow, 404, 500, network failure) so you can see the inspector without wiring it into your own app first:
+
+```sh
+cd example
+flutter run -d macos      # or: flutter run -d chrome
+```
+
 ## Quick Start
 
-### Setup (Universal Approach - Works for All Apps)
+Two lines. No navigator key, no `Stack` boilerplate.
 
 ```dart
-// 1. Create your Dio client with the interceptor
-final dio = Dio()
-  ..interceptors.add(RaccoonInterceptor());
+import 'package:dio/dio.dart';
+import 'package:raccoon/raccoon.dart';
 
-// 2. Set up a navigator key (works with MaterialApp, GoRouter, etc.)
-final navigatorKey = GlobalKey<NavigatorState>();
-
-void main() {
-  runApp(MyApp());
-}
+// 1. Wire your Dio client (adds the interceptor + enables request replay)
+final dio = Dio()..useRaccoon();
 
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    // Configure navigator provider - works everywhere!
-    Raccoon().setNavigatorProvider(() => navigatorKey.currentState!);
-    
+    // 2. Add the draggable inspector button
     return MaterialApp(
-      navigatorKey: navigatorKey,
-      // or MaterialApp.router with navigatorKey parameter
-      builder: (context, child) {
-        return Stack(
-          children: [
-            child!,
-            const RaccoonOverlayWidget(), // Draggable inspector button
-          ],
-        );
-      },
+      builder: Raccoon.overlay,
+      home: const HomePage(),
     );
   }
 }
 ```
 
-That's it! The overlay button now works with **all Flutter navigation solutions**.
+Works the same with `MaterialApp.router`, GoRouter, Auto_route, Beamer, and GetX — the inspector finds the active `Navigator` on its own.
+
+### Using `package:http`
+
+Wrap your client instead of adding an interceptor — everything sent through it is captured:
+
+```dart
+final client = RaccoonHttpClient();
+
+await client.get(Uri.parse('https://example.com/todos'));
+```
+
+`RaccoonHttpClient` also wraps an existing client (`RaccoonHttpClient(myClient)`), so it composes with retry/auth clients you already use. Both clients can be active at once; captured calls land in the same inspector.
+
+Two caveats: response bodies are buffered so the inspector can show them, so a streamed download is fully read into memory; and request replay runs through Dio, so `http`-only apps need `Raccoon().setDioInstance(Dio())` for the replay button to work.
 
 ### Usage
 
@@ -81,39 +89,90 @@ That's it! The overlay button now works with **all Flutter navigation solutions*
 - **Drag the button** to reposition it (it snaps to edges)
 - **Filter calls** by tapping the search icon in the inspector
 
-### Configuration Options
+### Advanced
 
-**When you DON'T need `setNavigatorProvider`:**
-- Placing `RaccoonOverlayWidget` inside a Scaffold/Screen (context has Navigator access)
+**Already using `builder`?** Nest the widget yourself:
 
-**When you DO need `setNavigatorProvider`:**
-- Router-based apps (GoRouter, Auto_route, Beamer, GetX, etc.)
-- Placing overlay at app root (outside Navigator tree)
-- Opening inspector programmatically without context
+```dart
+MaterialApp(
+  builder: (context, child) => Stack(
+    children: [?child, const RaccoonOverlayWidget()],
+  ),
+);
+```
 
-| Setup | Need setNavigatorProvider? |
-|-------|---------------------------|
-| MaterialApp with navigatorKey | ✅ No (if set up like above) |
-| GoRouter / Auto_route | ✅ Yes (use rootNavigatorKey) |
-| Inside Scaffold/Screen | ❌ No |
-| App root (outside Navigator) | ✅ Yes |
+**Opening the inspector from your own code:**
 
-**Discord Webhook for Slow API Calls:**
-You can optionally receive Discord notifications when an API call is considered slow. This feature is activated only when you provide a Discord webhook URL.
+```dart
+Raccoon().showInspector(context: context); // context is optional
+```
+
+**Navigator auto-discovery failing?** (custom navigator setups, multiple roots) Point Raccoon at your key explicitly:
+
+```dart
+Raccoon().setNavigatorProvider(() => navigatorKey.currentState!);
+```
+
+**Separate client for replay?** `dio.useRaccoon()` registers the capturing client. Override with `Raccoon().setDioInstance(otherDio)`.
+
+### Exporting
+
+**⋮ → Save all as HAR** writes `raccoon.har` next to the app's temporary files and shows the path; **Copy all as HAR** puts the same document on the clipboard. The Statistics screen's download button does both for its Markdown report. On the web there is no file system the package can reach, so saving falls back to copying.
+
+Raccoon deliberately has no share-sheet integration: that needs a native plugin, and this package stays pure Dart. Take the report and hand it to whatever your app already uses:
+
+```dart
+await Share.shareXFiles([
+  XFile.fromData(utf8.encode(Raccoon().exportHar()), name: 'raccoon.har'),
+]);
+```
+
+### Theme
+
+**⋮ → Theme** picks the color theme for the inspector UI: **Use App Theme** (default) inherits the host application's theme, and the presets — Basic, Clear Dark, Grass, Homebrew, Man Page, Novel, Ocean, Pro, Red Sands — override it, so you can read the inspector in light while the app under test runs dark.
+
+Set it from code if you want a fixed theme:
+
+```dart
+RaccoonService().themePreset = RaccoonThemePreset.homebrew;
+```
+
+The choice lasts for the session; it is not persisted across restarts.
+
+### Discord Alerts
+
+Add a webhook URL and Raccoon posts an embed when a call is **slow** or **fails**. Notifications are off entirely until a URL is set.
 
 ```dart
 Raccoon().setDiscordConfig(
   url: 'https://discord.com/api/webhooks/...',
-  threshold: 1000, // Optional: default is 500ms
+  threshold: 1000,     // slow = at or above 1000 ms; 0 disables slow alerts
+  slowAlerts: true,    // optional, defaults to true
+  errorAlerts: true,   // optional, defaults to true
 );
 ```
 
+Both alert kinds have a switch under **⋮ → Discord alerts** in the inspector, so you can mute one without touching code — handy when a known-slow endpoint is flooding the channel.
+
+| Alert | Fires on | Embed |
+|---|---|---|
+| Slow calls | Successful call with `duration >= threshold` | Orange |
+| Failed calls | `DioException`, timeout/no response, or 4xx/5xx status | Red, includes the error |
+
+A call that is both slow and failed posts once, as an error. Every embed carries method, endpoint, duration, status, server, and the cURL command.
+
 ## Service API Cheatsheet
 
-- `Raccoon().showInspector(context: context)` – opens the inspector UI (recommended: always provide context)
-- `Raccoon().setNavigatorProvider(() => navigatorKey.currentState!)` – optional navigator provider for opening inspector without context
-- `Raccoon().setDioInstance(dio)` – enables request replay functionality
-- `Raccoon().setDiscordConfig(url: url, threshold: threshold)` – enables Discord notifications for slow API calls
+- `dio.useRaccoon()` – attaches the interceptor and enables request replay
+- `RaccoonHttpClient([inner])` – `package:http` client wrapper that captures every call sent through it
+- `Raccoon.overlay` – drop-in `MaterialApp.builder` that renders the inspector button
+- `Raccoon().showInspector(context: context)` – opens the inspector UI (`context` optional)
+- `Raccoon().setNavigatorProvider(() => navigatorKey.currentState!)` – optional; only when auto-discovery fails
+- `Raccoon().setDioInstance(dio)` – optional; only when the replay client differs from the capturing one
+- `Raccoon().setDiscordConfig(url: url, threshold: threshold)` – enables Discord notifications for slow and failed calls
+- `Raccoon().exportHar()` – every completed call as a HAR 1.2 document
+- `Raccoon().exportStatsMarkdown()` – the statistics report as Markdown
+- `RaccoonService().themePreset` – color theme for the inspector UI (`RaccoonThemePreset.app` follows the host app)
 - `Raccoon().calls` – read-only list of captured HTTP calls
 - `Raccoon().isInspectorOpened` – listen for inspector visibility changes
 - `Raccoon().listenable` – attach to a `ListenableBuilder`/`AnimatedBuilder` for custom dashboards

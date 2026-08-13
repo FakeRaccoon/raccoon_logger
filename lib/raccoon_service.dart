@@ -8,7 +8,11 @@ import 'package:flutter/material.dart';
 import 'package:raccoon/model/raccoon_http_call.dart';
 import 'package:raccoon/model/raccoon_http_error.dart';
 import 'package:raccoon/model/raccoon_http_response.dart';
+import 'package:raccoon/raccoon_theme.dart';
 import 'package:raccoon/view/raccoon_view.dart';
+
+/// Kinds of Discord notification Raccoon can post for a finished call.
+enum RaccoonAlert { slow, error }
 
 /// Singleton backing store for captured HTTP calls and inspector state.
 ///
@@ -28,7 +32,10 @@ class RaccoonService extends ChangeNotifier {
 
   factory RaccoonService() => _instance;
 
-  static RaccoonService get instance => _instance;
+  /// Maximum number of calls retained. Oldest are dropped past this cap to
+  /// keep memory bounded in long-running sessions.
+  // ponytail: fixed ring cap, expose a setter only if someone asks for it.
+  static const int _maxCalls = 1000;
 
   /// Optional navigator provider for opening inspector without context.
   /// Set via [setNavigatorProvider] to provide a [NavigatorState] when needed.
@@ -41,8 +48,25 @@ class RaccoonService extends ChangeNotifier {
   /// Optional Discord webhook URL for slow call notifications.
   String? _discordWebhookUrl;
 
-  /// Threshold in milliseconds for slow call notifications.
+  /// Threshold in milliseconds for slow call notifications. `0` disables them.
   int _slowCallThreshold = 0;
+
+  bool _discordSlowAlerts = true;
+  bool _discordErrorAlerts = true;
+
+  RaccoonThemePreset _themePreset = RaccoonThemePreset.app;
+
+  /// Color theme the inspector UI renders with. Defaults to the host app's
+  /// theme; changing it rebuilds the open inspector screens.
+  RaccoonThemePreset get themePreset => _themePreset;
+
+  set themePreset(RaccoonThemePreset value) {
+    if (_themePreset == value) {
+      return;
+    }
+    _themePreset = value;
+    notifyListeners();
+  }
 
   /// Set a navigator provider for opening the inspector without context.
   ///
@@ -78,14 +102,60 @@ class RaccoonService extends ChangeNotifier {
     _dioInstance = dio;
   }
 
-  /// Set Discord webhook configuration for slow call notifications.
+  /// Set Discord webhook configuration for call notifications.
   ///
   /// [url] is the Discord webhook URL.
-  /// [threshold] is the duration in milliseconds above which a call is
-  /// considered slow.
-  void setDiscordConfig({required String url, required int threshold}) {
+  /// [threshold] is the duration in milliseconds at or above which a call is
+  /// considered slow. Pass `0` to never alert on slow calls.
+  /// [slowAlerts] and [errorAlerts] set the initial state of the two switches
+  /// in the inspector's Discord settings sheet.
+  void setDiscordConfig({
+    required String url,
+    required int threshold,
+    bool slowAlerts = true,
+    bool errorAlerts = true,
+  }) {
     _discordWebhookUrl = url;
     _slowCallThreshold = threshold;
+    _discordSlowAlerts = slowAlerts;
+    _discordErrorAlerts = errorAlerts;
+    notifyListeners();
+  }
+
+  /// Whether a Discord webhook URL has been configured.
+  bool get isDiscordConfigured => _discordWebhookUrl != null;
+
+  /// Duration in milliseconds at or above which a call counts as slow.
+  int get slowCallThreshold => _slowCallThreshold;
+
+  /// Fallback used when no Discord threshold is configured, so "slow" still
+  /// means something on the statistics screen.
+  static const int defaultSlowThreshold = 500;
+
+  /// The threshold the inspector actually reports against.
+  int get effectiveSlowThreshold =>
+      _slowCallThreshold > 0 ? _slowCallThreshold : defaultSlowThreshold;
+
+  /// Whether slow calls trigger a Discord notification.
+  bool get discordSlowAlerts => _discordSlowAlerts;
+
+  set discordSlowAlerts(bool value) {
+    if (_discordSlowAlerts == value) {
+      return;
+    }
+    _discordSlowAlerts = value;
+    notifyListeners();
+  }
+
+  /// Whether failed calls trigger a Discord notification.
+  bool get discordErrorAlerts => _discordErrorAlerts;
+
+  set discordErrorAlerts(bool value) {
+    if (_discordErrorAlerts == value) {
+      return;
+    }
+    _discordErrorAlerts = value;
+    notifyListeners();
   }
 
   /// Get the configured Dio instance for replaying requests.
@@ -109,6 +179,9 @@ class RaccoonService extends ChangeNotifier {
 
   void addCall(RaccoonHttpCall call) {
     _calls.add(call);
+    if (_calls.length > _maxCalls) {
+      _calls.removeAt(0);
+    }
     notifyListeners();
   }
 
@@ -140,18 +213,59 @@ class RaccoonService extends ChangeNotifier {
       final updatedCall = seed.copyWith(error: error, duration: duration);
       _calls[index] = updatedCall;
       notifyListeners();
-      _sendDiscordNotification(updatedCall);
+      // Discord notification is fired from addResponse only; every terminal
+      // path (success or error) also calls addResponse, so notifying here too
+      // would double-post.
     } else {
       log('No call found with id $requestId to update the response.');
     }
   }
 
-  /// Sends a Discord notification if the call duration exceeds the threshold.
+  /// Decides which Discord alert (if any) a finished call should trigger.
+  ///
+  /// Returns [RaccoonAlert.error] for failed calls, [RaccoonAlert.slow] for
+  /// calls at or above [threshold], and `null` when neither applies or the
+  /// matching switch is off. Errors win when a call is both failed and slow, so
+  /// a call never posts twice.
+  @visibleForTesting
+  static RaccoonAlert? alertFor(
+    RaccoonHttpCall call, {
+    required int threshold,
+    required bool slowAlerts,
+    required bool errorAlerts,
+  }) {
+    final status = call.response?.status;
+    // status == -1 is the interceptor's marker for "request never got a
+    // response" (timeout, DNS, connection refused).
+    final isError =
+        call.error != null || status == -1 || (status != null && status >= 400);
+    if (isError) {
+      return errorAlerts ? RaccoonAlert.error : null;
+    }
+    if (slowAlerts && threshold > 0 && call.duration >= threshold) {
+      return RaccoonAlert.slow;
+    }
+    return null;
+  }
+
+  /// Sends a Discord notification when a finished call matches an enabled alert.
   Future<void> _sendDiscordNotification(RaccoonHttpCall call) async {
     final url = _discordWebhookUrl;
-    if (url == null || call.duration < _slowCallThreshold) {
+    if (url == null) {
       return;
     }
+
+    final alert = alertFor(
+      call,
+      threshold: _slowCallThreshold,
+      slowAlerts: _discordSlowAlerts,
+      errorAlerts: _discordErrorAlerts,
+    );
+    if (alert == null) {
+      return;
+    }
+
+    final isError = alert == RaccoonAlert.error;
 
     try {
       final dio = Dio();
@@ -160,8 +274,10 @@ class RaccoonService extends ChangeNotifier {
         data: {
           "embeds": [
             {
-              "title": "🦝 Slow API Call Detected",
-              "color": 16753920, // Orange
+              "title": isError
+                  ? "🦝 API Error Detected"
+                  : "🦝 Slow API Call Detected",
+              "color": isError ? 15548997 : 16753920, // Red : Orange
               "fields": [
                 {
                   "name": "Endpoint",
@@ -183,10 +299,17 @@ class RaccoonService extends ChangeNotifier {
                   "value": "`${call.server}`",
                   "inline": false,
                 },
+                if (call.error != null)
+                  {
+                    "name": "Error",
+                    // Discord rejects embed field values over 1024 chars.
+                    "value": _truncate(call.error!.error, 1000),
+                    "inline": false,
+                  },
                 if (call.request?.curl != null)
                   {
                     "name": "cURL",
-                    "value": "```\n${call.request!.curl}\n```",
+                    "value": "```\n${_truncate(call.request!.curl, 980)}\n```",
                     "inline": false,
                   },
               ],
@@ -199,6 +322,9 @@ class RaccoonService extends ChangeNotifier {
       log('RaccoonService: Failed to send Discord notification: $e');
     }
   }
+
+  static String _truncate(String value, int max) =>
+      value.length <= max ? value : '${value.substring(0, max)}…';
 
   /// Clears all captured calls and notifies listeners.
   void clearCalls() {
@@ -318,18 +444,21 @@ class RaccoonService extends ChangeNotifier {
 
     final request = call.request!;
 
-    // Prepare request options
+    if (request.formDataFiles?.isNotEmpty ?? false) {
+      // Only the filename and content type of an upload are captured, never
+      // the bytes, so a "replay" would silently send the form without its
+      // files. Refuse instead of sending something that isn't the request.
+      throw StateError(
+        'Cannot replay a multipart upload: file contents are not captured.',
+      );
+    }
+
     final options = Options(
       method: call.method,
-      headers: request.headers,
+      headers: replayHeaders(request.headers),
       contentType: request.contentType,
     );
 
-    // Parse query parameters from URI
-    final uri = Uri.parse(call.uri);
-    final queryParameters = uri.queryParameters;
-
-    // Prepare request data
     dynamic data = request.body;
     if (request.body == "Form Data" && request.formDataFields != null) {
       final formData = FormData();
@@ -339,12 +468,29 @@ class RaccoonService extends ChangeNotifier {
       data = formData;
     }
 
-    // Execute the request
-    return _dioInstance!.request(
-      call.uri,
-      data: data,
-      queryParameters: queryParameters.isNotEmpty ? queryParameters : null,
-      options: options,
-    );
+    // The captured URI already carries the query string; passing
+    // queryParameters as well would append a second copy of every parameter.
+    return _dioInstance!.request(call.uri, data: data, options: options);
+  }
+
+  /// Drops the captured headers that describe the *original* transmission
+  /// rather than the request itself.
+  ///
+  /// `content-length` is the big one: the replayed body is re-serialized and
+  /// rarely lands on the same byte count, and a stale length makes the server
+  /// reject the request or read a truncated body.
+  @visibleForTesting
+  static Map<String, String> replayHeaders(Map<String, String> headers) {
+    const dropped = {
+      'content-length',
+      'host',
+      'connection',
+      'transfer-encoding',
+      'content-encoding',
+    };
+    return {
+      for (final entry in headers.entries)
+        if (!dropped.contains(entry.key.toLowerCase())) entry.key: entry.value,
+    };
   }
 }

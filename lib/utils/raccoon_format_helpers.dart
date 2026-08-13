@@ -1,5 +1,57 @@
+import 'package:flutter/material.dart';
+
 /// Utility functions for formatting sizes, times, and other data
 class RaccoonFormatHelpers {
+  /// Picks the shade of [color] that stays legible on the given [brightness].
+  ///
+  /// The default 500 shades are too dark on a dark surface and too light on a
+  /// white one, so dark themes get the 300 shade and light themes the 700.
+  static Color tone(MaterialColor color, Brightness brightness) =>
+      brightness == Brightness.dark ? color.shade300 : color.shade700;
+
+  /// Color for an HTTP status code. Null or -1 (network error) is treated as
+  /// an error (red).
+  static Color statusCodeColor(
+    int? statusCode, {
+    Brightness brightness = Brightness.light,
+  }) {
+    if (statusCode == null || statusCode == -1) {
+      return tone(Colors.red, brightness);
+    }
+    if (statusCode >= 200 && statusCode < 300) {
+      return tone(Colors.green, brightness);
+    }
+    if (statusCode >= 300 && statusCode < 400) {
+      return tone(Colors.blue, brightness);
+    }
+    if (statusCode >= 400 && statusCode < 500) {
+      return tone(Colors.orange, brightness);
+    }
+    if (statusCode >= 500) return tone(Colors.red, brightness);
+    return tone(Colors.grey, brightness);
+  }
+
+  /// Color for an HTTP method (GET/POST/PUT/PATCH/DELETE).
+  static Color methodColor(
+    String method, {
+    Brightness brightness = Brightness.light,
+  }) {
+    switch (method.toUpperCase()) {
+      case 'GET':
+        return tone(Colors.blue, brightness);
+      case 'POST':
+        return tone(Colors.green, brightness);
+      case 'PUT':
+        return tone(Colors.orange, brightness);
+      case 'PATCH':
+        return tone(Colors.purple, brightness);
+      case 'DELETE':
+        return tone(Colors.red, brightness);
+      default:
+        return tone(Colors.grey, brightness);
+    }
+  }
+
   /// Formats bytes into human-readable size (KB, MB, GB)
   static String formatBytes(int bytes) {
     if (bytes < 1024) {

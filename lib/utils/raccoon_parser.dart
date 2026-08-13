@@ -1,76 +1,67 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
-import 'package:flutter/material.dart';
 
 /// Body parser helper used to parsing body data.
 class RaccoonParser {
-  static const String _jsonContentTypeSmall = 'content-type';
-  static const String _jsonContentTypeBig = 'Content-Type';
-  static const JsonEncoder _encoder = JsonEncoder.withIndent('  ');
+  /// Builds a cURL command from client-agnostic request parts.
+  ///
+  /// [formParts] are rendered as `--form` flags (`name=value`, or
+  /// `name=@filename` for files) and take precedence over [body].
+  static String buildCurl({
+    required String method,
+    required Uri uri,
+    Map<String, String> headers = const <String, String>{},
+    List<String> formParts = const <String>[],
+    String? body,
+  }) {
+    final curl = StringBuffer('curl -X $method');
 
-  static String generateCurlCommand(RequestOptions options) {
-    final curl = StringBuffer();
-    curl.write("curl -X ${options.method}");
-
-    // Add headers
-    options.headers.forEach((key, value) {
+    headers.forEach((key, value) {
       curl.write(' -H "$key: $value"');
     });
 
-    // Handle FormData
-    if (options.data is FormData) {
-      final formData = options.data as FormData;
-
-      // Add fields
-      for (var field in formData.fields) {
-        curl.write(' --form "${field.key}=${field.value}"');
+    if (formParts.isNotEmpty) {
+      for (final part in formParts) {
+        curl.write(' --form "$part"');
       }
-
-      // Add files
-      for (var file in formData.files) {
-        curl.write(' --form "${file.key}=@${file.value.filename}"');
-      }
-    } else if (options.data != null) {
-      // Handle other data types
-      final data = options.data is Map
-          ? jsonEncode(options.data)
-          : options.data.toString();
-      curl.write(" -d '${data.replaceAll("'", "\\'")}'");
+    } else if (body != null) {
+      curl.write(" -d '${body.replaceAll("'", "\\'")}'");
     }
 
-    // Add URL
-    curl.write(' "${options.uri}"');
+    curl.write(' "$uri"');
 
     return curl.toString();
   }
 
-  /// Formats body based on [contentType]. If body is null it will return
-  /// [_emptyBody]. Otherwise if body type is json - it will try to format it.
-  ///
-  static String formatJson(Map<String, dynamic> jsonString) {
-    try {
-      return _encoder.convert(jsonString); // Pretty-print with indentation
-    } catch (e) {
-      return ""; // Return the original string if it's not valid JSON
-    }
-  }
+  static String generateCurlCommand(RequestOptions options) {
+    final headers = options.headers.map(
+      (key, value) => MapEntry(key, value.toString()),
+    );
+    final data = options.data;
 
-  /// Get content type from [headers]. It looks for json and if it can't find
-  /// it, it will return unknown content type.
-  static String? getContentType({
-    required BuildContext context,
-    Map<String, String>? headers,
-  }) {
-    if (headers != null) {
-      if (headers.containsKey(_jsonContentTypeSmall)) {
-        return headers[_jsonContentTypeSmall];
-      }
-      if (headers.containsKey(_jsonContentTypeBig)) {
-        return headers[_jsonContentTypeBig];
-      }
+    if (data is FormData) {
+      return buildCurl(
+        method: options.method,
+        uri: options.uri,
+        headers: headers,
+        formParts: [
+          for (final field in data.fields) '${field.key}=${field.value}',
+          for (final file in data.files) '${file.key}=@${file.value.filename}',
+        ],
+      );
     }
-    return "Unknown content type";
+
+    return buildCurl(
+      method: options.method,
+      uri: options.uri,
+      headers: headers,
+      body: data == null
+          ? null
+          : data is Map
+          ? jsonEncode(data)
+          : data.toString(),
+    );
   }
 
   /// Parses headers from [dynamic] to [Map<String,String>], if possible.

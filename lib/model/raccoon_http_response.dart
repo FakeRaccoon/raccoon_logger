@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
-class RaccoonHttpResponse with EquatableMixin {
+/// Definition of http response data holder.
+class RaccoonHttpResponse with Equatable {
   RaccoonHttpResponse({
     this.status = 0,
     this.size = 0,
